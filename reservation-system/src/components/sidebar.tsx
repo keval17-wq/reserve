@@ -14,19 +14,19 @@ const Sidebar = () => {
     };
 
     return (
-        <div className={`h-screen bg-slate-100 text-slate-800 ${isCollapsed ? 'w-20' : 'w-64'} transition-all duration-300 flex flex-col justify-between shadow-lg border-r border-slate-300`}>
+        <div className={`h-screen bg-slate-100 text-slate-800 ${isCollapsed ? 'w-20' : 'w-64'} transition-all duration-500 flex flex-col justify-between shadow-lg border-r border-slate-300`}>
             {/* Header */}
             <div>
-                <div className="flex items-center justify-between p-4">
-                    {!isCollapsed && <h1 className="text-xl font-bold text-slate-700">Reservo</h1>}
+                <div className="flex items-center justify-between p-4 group">
+                    {!isCollapsed && <h1 className="text-xl font-bold text-slate-700 transition duration-300">Reservo</h1>}
                     <button 
                         onClick={toggleSidebar} 
-                        className="focus:outline-none text-slate-600 hover:bg-slate-200 rounded-full p-1 transition"
+                        className="focus:outline-none text-slate-600 hover:bg-slate-200 rounded-full p-1 transition-all duration-300 hover:scale-110"
                     >
                         {isCollapsed ? (
-                            <HiOutlineChevronDoubleRight size={20} />
+                            <HiOutlineChevronDoubleRight size={22} className="hover:text-slate-800" />
                         ) : (
-                            <HiOutlineChevronDoubleLeft size={20} />
+                            <HiOutlineChevronDoubleLeft size={22} className="hover:text-slate-800" />
                         )}
                     </button>
                 </div>
@@ -42,13 +42,13 @@ const Sidebar = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 flex items-center justify-between">
-                <Link href="/logout" className="flex items-center space-x-2 text-slate-500 hover:text-slate-700 transition-colors">
+            <div className="p-4 flex items-center justify-between hover:bg-slate-200 transition duration-300 cursor-pointer">
+                <Link href="/logout" className="flex items-center space-x-2 text-slate-500 hover:text-slate-800 transition-colors">
                     <FiLogOut size={20} />
                     {!isCollapsed && <span>Logout</span>}
                 </Link>
                 {!isCollapsed && (
-                    <div className="flex items-center justify-center w-10 h-10 bg-slate-400 text-white rounded-full text-sm font-bold">
+                    <div className="flex items-center justify-center w-10 h-10 bg-slate-400 text-white rounded-full text-sm font-bold transition-transform duration-300 hover:scale-105">
                         N
                     </div>
                 )}
@@ -68,10 +68,10 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ href, icon, label, isCollapse
     return (
         <Link 
             href={href} 
-            className="flex items-center p-2 mx-2 rounded text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+            className="flex items-center p-2 mx-2 rounded text-slate-600 hover:bg-slate-200 hover:text-slate-800 transition-all duration-300 hover:pl-4"
         >
             {icon}
-            {!isCollapsed && <span className="ml-4">{label}</span>}
+            {!isCollapsed && <span className="ml-4 transition-transform duration-300">{label}</span>}
         </Link>
     );
 };
