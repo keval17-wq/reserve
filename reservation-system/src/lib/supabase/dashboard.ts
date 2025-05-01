@@ -5,7 +5,7 @@
 // 🔹 Author: Keval Gandhi
 // ─────────────────────────────────────────────
 
-import { supabase } from '@/lib/supabaseClient'; // ✅ Use shared client
+import { supabase } from '@/lib/supabaseClient'; 
 
 // 🟦 Get total reservations
 export const getTotalReservations = async (): Promise<number> => {
