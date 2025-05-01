@@ -1,44 +1,130 @@
-"use client";
+'use client';
 
 import React from 'react';
-import StatsCard from '@/components/stats-card';
-import Chart from '@/components/chart';
-import { DashboardStatsCard } from '../../components/dashboard/dashboardStatsCard';
+import { DashboardStatsCard } from '@/components/dashboard/dashboardStatsCard';
+import { AnalyticsOverviewCard } from '../../components/dashboard/analyticsOverviewCard';
+import { TableStatusCard } from '@/components/dashboard/tableStatusCard';
+import { WeeklyPerformanceChart } from '@/components/dashboard/weeklyPerformanceChart';
+import { RecentCustomersCard } from '@/components/dashboard/recentCustomersCard';
 
-const dummyData = [
-    { name: 'Mon', revenue: 1200, occupancy: 40 },
-    { name: 'Tue', revenue: 1500, occupancy: 50 },
-    { name: 'Wed', revenue: 1700, occupancy: 60 },
-    { name: 'Thu', revenue: 1300, occupancy: 45 },
-    { name: 'Fri', revenue: 2000, occupancy: 80 },
-    { name: 'Sat', revenue: 2500, occupancy: 90 },
-    { name: 'Sun', revenue: 2200, occupancy: 70 },
-];
+import {
+  CalendarDays,
+  DollarSign,
+  Users,
+  Percent,
+  Clock,
+  Table,
+  CircleSlash,
+  AlertTriangle,
+  Wrench,
+} from 'lucide-react';
 
-const Dashboard = () => {
-    return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatsCard title="Total Revenue" value="$12,400" percentage={15} color="bg-green-500" />
-                <StatsCard title="Reservations" value="320" percentage={5} color="bg-blue-500" />
-                <StatsCard title="Occupancy Rate" value="75%" percentage={10} color="bg-purple-500" />
-            </div>
+const DashboardPage = () => {
+  return (
+    <div className="p-6 space-y-12">
+      {/* Top Stats Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <DashboardStatsCard
+          title="Total Reservations"
+          value="41"
+          percentageChange={-4.9}
+          icon={<CalendarDays className="h-5 w-5" />}
+        />
+        <DashboardStatsCard
+          title="New Customers"
+          value="12"
+          percentageChange={5.2}
+          icon={<Users className="h-5 w-5" />}
+        />
+        <DashboardStatsCard
+          title="Revenue"
+          value="$12,580"
+          percentageChange={8.6}
+          icon={<DollarSign className="h-5 w-5" />}
+        />
+        <DashboardStatsCard
+          title="Occupancy Rate"
+          value="74%"
+          percentageChange={-2.1}
+          icon={<Percent className="h-5 w-5" />}
+        />
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Chart title="Revenue Over Time" data={dummyData} dataKey="revenue" />
-                <Chart title="Occupancy Rate Over Time" data={dummyData} dataKey="occupancy" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <DashboardStatsCard 
-                    title="Customer Growth" 
-                    value="150" 
-                    percentageChange={20} 
-                    icon="user-group" 
-                />
-            </div>
+      {/* Analytics Overview Section */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Analytics Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <AnalyticsOverviewCard
+            title="Weekly Revenue"
+            value="$12,580"
+            percentageChange={12.3}
+            icon={<DollarSign className="h-5 w-5" />}
+          />
+          <AnalyticsOverviewCard
+            title="New Customers"
+            value="32"
+            percentageChange={8.7}
+            icon={<Users className="h-5 w-5" />}
+          />
+          <AnalyticsOverviewCard
+            title="Reservations"
+            value="186"
+            percentageChange={-3.2}
+            icon={<CalendarDays className="h-5 w-5" />}
+          />
+          <AnalyticsOverviewCard
+            title="Average Time"
+            value="1.8h"
+            percentageChange={6.5}
+            icon={<Clock className="h-5 w-5" />}
+          />
         </div>
-    );
+      </div>
+
+      {/* Table Status Section */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Table Status</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <TableStatusCard
+            label="Available"
+            count={10}
+            percentage="77%"
+            color="bg-green-100"
+            icon={<Table className="h-5 w-5 text-green-600" />}
+          />
+          <TableStatusCard
+            label="Reserved"
+            count={0}
+            percentage="0%"
+            color="bg-yellow-100"
+            icon={<CircleSlash className="h-5 w-5 text-yellow-500" />}
+          />
+          <TableStatusCard
+            label="Occupied"
+            count={2}
+            percentage="15%"
+            color="bg-blue-100"
+            icon={<AlertTriangle className="h-5 w-5 text-blue-600" />}
+          />
+          <TableStatusCard
+            label="Maintenance"
+            count={1}
+            percentage="8%"
+            color="bg-red-100"
+            icon={<Wrench className="h-5 w-5 text-red-600" />}
+          />
+        </div>
+      </div>
+
+      {/* Performance + Recent Customers Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <WeeklyPerformanceChart />
+        </div>
+        <RecentCustomersCard />
+      </div>
+    </div>
+  );
 };
 
-export default Dashboard;
+export default DashboardPage;
