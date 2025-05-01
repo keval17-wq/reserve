@@ -3,6 +3,7 @@
 import React from 'react';
 import StatsCard from '@/components/stats-card';
 import Chart from '@/components/chart';
+import { DashboardStatsCard } from '../../components/dashboard/dashboardStatsCard';
 
 const dummyData = [
     { name: 'Mon', revenue: 1200, occupancy: 40 },
@@ -26,6 +27,15 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Chart title="Revenue Over Time" data={dummyData} dataKey="revenue" />
                 <Chart title="Occupancy Rate Over Time" data={dummyData} dataKey="occupancy" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DashboardStatsCard 
+                    title="Customer Growth" 
+                    value="150" 
+                    percentageChange={20} 
+                    icon="user-group" 
+                />
             </div>
         </div>
     );
