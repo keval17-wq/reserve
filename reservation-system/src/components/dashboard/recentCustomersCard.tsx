@@ -12,26 +12,24 @@ type Customer = {
   time: string;
 };
 
-const mockCustomers: Customer[] = [
-  { name: 'Alice', time: '2 hours ago' },
-  { name: 'Bob', time: '4 hours ago' },
-  { name: 'Charlie', time: '6 hours ago' },
-];
+type Props = {
+  customers: { name: string; created_at: string }[];
+};
 
-export const RecentCustomersCard = () => {
+export const RecentCustomersCard = ({ customers }: Props) => {
   return (
     <div className="p-6 rounded-lg border bg-white">
       <h2 className="text-lg font-semibold mb-4 text-gray-700">
         Recent Customers
       </h2>
       <ul className="space-y-2">
-        {mockCustomers.length === 0 ? (
-          <li className="text-gray-400 text-sm">No customers in the last 24 hours.</li>
+        {customers.length === 0 ? (
+          <li className="text-gray-400 text-sm">No customers found.</li>
         ) : (
-          mockCustomers.map((c, i) => (
+          customers.map((c, i) => (
             <li key={i} className="text-sm text-gray-800 flex justify-between">
               <span>{c.name}</span>
-              <span className="text-gray-500">{c.time}</span>
+              <span className="text-gray-500">{new Date(c.created_at).toLocaleTimeString()}</span>
             </li>
           ))
         )}
@@ -39,3 +37,4 @@ export const RecentCustomersCard = () => {
     </div>
   );
 };
+

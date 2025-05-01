@@ -1,11 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DashboardStatsCard } from '@/components/dashboard/dashboardStatsCard';
-import { AnalyticsOverviewCard } from '../../components/dashboard/analyticsOverviewCard';
+import { AnalyticsOverviewCard } from '@/components/dashboard/analyticsOverviewCard';
 import { TableStatusCard } from '@/components/dashboard/tableStatusCard';
 import { WeeklyPerformanceChart } from '@/components/dashboard/weeklyPerformanceChart';
 import { RecentCustomersCard } from '@/components/dashboard/recentCustomersCard';
+import {
+  getTotalReservations,
+  getTotalRevenue,
+  getOccupancyRate,
+  getRecentCustomers,
+} from '../../lib/supabase/dashboard';
 
 import {
   CalendarDays,
@@ -20,32 +26,57 @@ import {
 } from 'lucide-react';
 
 const DashboardPage = () => {
+  const [totalReservations, setTotalReservations] = useState<number>(0);
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [occupancyRate, setOccupancyRate] = useState<number>(0);
+  const [recentCustomers, setRecentCustomers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const reservations = await getTotalReservations();
+        const revenue = await getTotalRevenue();
+        const occupancy = await getOccupancyRate();
+        const customers = await getRecentCustomers();
+
+        setTotalReservations(reservations);
+        setTotalRevenue(revenue);
+        setOccupancyRate(occupancy);
+        setRecentCustomers(customers);
+      } catch (error) {
+        console.error('Dashboard fetch error:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div className="p-6 space-y-12">
       {/* Top Stats Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <DashboardStatsCard
           title="Total Reservations"
-          value="41"
-          percentageChange={-4.9}
+          value={totalReservations.toString()}
+          percentageChange={2.1}
           icon={<CalendarDays className="h-5 w-5" />}
         />
         <DashboardStatsCard
           title="New Customers"
-          value="12"
-          percentageChange={5.2}
+          value={recentCustomers.length.toString()}
+          percentageChange={1.7}
           icon={<Users className="h-5 w-5" />}
         />
         <DashboardStatsCard
           title="Revenue"
-          value="$12,580"
+          value={`$${totalRevenue.toFixed(2)}`}
           percentageChange={8.6}
           icon={<DollarSign className="h-5 w-5" />}
         />
         <DashboardStatsCard
           title="Occupancy Rate"
-          value="74%"
-          percentageChange={-2.1}
+          value={`${occupancyRate}%`}
+          percentageChange={-1.2}
           icon={<Percent className="h-5 w-5" />}
         />
       </div>
@@ -56,20 +87,20 @@ const DashboardPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <AnalyticsOverviewCard
             title="Weekly Revenue"
-            value="$12,580"
-            percentageChange={12.3}
+            value={`$${totalRevenue.toFixed(2)}`}
+            percentageChange={5.2}
             icon={<DollarSign className="h-5 w-5" />}
           />
           <AnalyticsOverviewCard
             title="New Customers"
-            value="32"
-            percentageChange={8.7}
+            value={recentCustomers.length.toString()}
+            percentageChange={3.4}
             icon={<Users className="h-5 w-5" />}
           />
           <AnalyticsOverviewCard
             title="Reservations"
-            value="186"
-            percentageChange={-3.2}
+            value={totalReservations.toString()}
+            percentageChange={1.9}
             icon={<CalendarDays className="h-5 w-5" />}
           />
           <AnalyticsOverviewCard
@@ -81,47 +112,47 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Table Status Section */}
+      {/* Table Status (static placeholder until connected) */}
       <div>
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Table Status</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <TableStatusCard
             label="Available"
             count={10}
-            percentage="77%"
+            percentage="55%"
             color="bg-green-100"
             icon={<Table className="h-5 w-5 text-green-600" />}
           />
           <TableStatusCard
             label="Reserved"
-            count={0}
-            percentage="0%"
+            count={2}
+            percentage="15%"
             color="bg-yellow-100"
             icon={<CircleSlash className="h-5 w-5 text-yellow-500" />}
           />
           <TableStatusCard
             label="Occupied"
-            count={2}
-            percentage="15%"
+            count={5}
+            percentage="25%"
             color="bg-blue-100"
             icon={<AlertTriangle className="h-5 w-5 text-blue-600" />}
           />
           <TableStatusCard
             label="Maintenance"
             count={1}
-            percentage="8%"
+            percentage="5%"
             color="bg-red-100"
             icon={<Wrench className="h-5 w-5 text-red-600" />}
           />
         </div>
       </div>
 
-      {/* Performance + Recent Customers Section */}
+      {/* Performance Chart + Recent Customers */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <WeeklyPerformanceChart />
         </div>
-        <RecentCustomersCard />
+        <RecentCustomersCard customers={recentCustomers} />
       </div>
     </div>
   );
