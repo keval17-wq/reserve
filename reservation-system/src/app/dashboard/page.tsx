@@ -52,7 +52,7 @@ const DashboardPage = () => {
   }, []);
 
   return (
-    <div className="p-6 space-y-12">
+    <div className="p-6 space-y-12 bg-white text-black">
       {/* Top Stats Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <DashboardStatsCard
