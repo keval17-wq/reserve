@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import 'react-calendar/dist/Calendar.css'; // default calendar styles
 
 import { CalendarView } from '@/components/calendar/calendarView';
 import { ReservationModal } from '@/components/calendar/reservationModal';
 import { getReservationsByMonth } from '@/lib/supabase/calendar';
 
-// 🟢 Type for each reservation
+// Type for each reservation
 type Reservation = {
   id: string;
   customer_name: string;
@@ -16,49 +16,54 @@ type Reservation = {
   table_number: number;
 };
 
+type ReservationsByDate = {
+  date: string; // formatted as 'YYYY-MM-DD'
+  reservations: Reservation[];
+};
+
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-
+  const [monthlyReservations, setMonthlyReservations] = useState<ReservationsByDate[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
-  const [monthlyReservations, setMonthlyReservations] = useState<
-    { date: string; reservations: Reservation[] }[]
-  >([]);
-
   useEffect(() => {
-    const fetchData = async () => {
-      const year = selectedDate.getFullYear();
-      const month = selectedDate.getMonth() + 1;
-
+    const fetchMonthlyReservations = async () => {
       try {
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth() + 1;
+
         const reservations = await getReservationsByMonth(year, month);
-        setMonthlyReservations(reservations as { date: string; reservations: Reservation[] }[]);
-      } catch (err) {
-        console.error('Failed to load reservations:', err);
+        setMonthlyReservations(reservations as ReservationsByDate[]);
+      } catch (error) {
+        console.error('Error fetching reservations:', error);
       }
     };
 
-    fetchData();
+    fetchMonthlyReservations();
   }, [selectedDate]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-white text-black min-h-screen">
       <h1 className="text-2xl font-bold mb-2">Calendar</h1>
-      <p className="text-sm text-gray-600 mb-4">View reservations by date and manage them dynamically.</p>
+      <p className="text-sm text-gray-600 mb-4">
+        View reservations by date and manage them dynamically.
+      </p>
 
-      <Calendar
-        onChange={(val) => setSelectedDate(val as Date)} // ✅ Type-cast correctly
-        value={selectedDate}
-        calendarType="gregory" // ✅ Correct calendar type
-        locale="en-US"
-      />
+      {/* Calendar with forced light styling */}
+      <div className="[&_.react-calendar]:bg-white [&_.react-calendar]:text-black [&_.react-calendar__tile--active]:bg-blue-600 [&_.react-calendar__tile--active]:text-white [&_.react-calendar__tile--now]:bg-yellow-300 [&_.react-calendar__tile--now]:text-black">
+        <Calendar
+          onChange={(value) => setSelectedDate(value as Date)}
+          value={selectedDate}
+          calendarType="gregory"
+          locale="en-US"
+        />
+      </div>
 
       <div className="mt-6">
         <h2 className="text-lg font-semibold mb-2">Reservations Overview</h2>
-
         <CalendarView
           days={monthlyReservations}
-          onSelectReservation={(res) => setSelectedReservation(res)}
+          onSelectReservation={(reservation) => setSelectedReservation(reservation)}
         />
       </div>
 
@@ -66,11 +71,11 @@ export default function CalendarPage() {
         <ReservationModal
           reservation={selectedReservation}
           onCancel={() => {
-            console.log('Cancel reservation', selectedReservation.id);
+            // Add cancel logic here
             setSelectedReservation(null);
           }}
           onMove={() => {
-            console.log('Move reservation', selectedReservation.id);
+            // Add move logic here
             setSelectedReservation(null);
           }}
           onClose={() => setSelectedReservation(null)}
