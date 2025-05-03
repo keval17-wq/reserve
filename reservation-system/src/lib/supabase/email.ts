@@ -1,8 +1,8 @@
-// lib/supabase/email.ts
+// ✅ lib/supabase/email.ts
 import { Resend } from 'resend';
 import { supabase } from '@/lib/supabaseClient';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend('re_WQZRvNWN_JUs8MrDunXXvqRTQUEHpbw5z');
 
 type EmailType = 'confirmation' | 'cancel';
 
@@ -75,10 +75,13 @@ function generateEmailTemplate({
     return {
       subject: `Your reservation at Sahrati is confirmed!`,
       html: `
-        <h1>Reservation Confirmed</h1>
-        <p>Hi ${customerName},</p>
-        <p>Your reservation for ${partySize} people on ${reservationDateTime} has been confirmed at Sahrati.</p>
-        <p>We look forward to serving you!</p>
+        <div style="font-family: sans-serif; padding: 20px;">
+          <h1 style="color: #1e40af;">Reservation Confirmed</h1>
+          <p>Hi <strong>${customerName}</strong>,</p>
+          <p>Your reservation for <strong>${partySize}</strong> people on <strong>${reservationDateTime}</strong> has been confirmed at <strong>Sahrati</strong>.</p>
+          <p>We look forward to hosting you!</p>
+          <p style="margin-top: 24px;">— Sahrati Team</p>
+        </div>
       `,
     };
   }
@@ -87,10 +90,13 @@ function generateEmailTemplate({
     return {
       subject: `Your reservation at Sahrati has been cancelled`,
       html: `
-        <h1>Reservation Cancelled</h1>
-        <p>Hi ${customerName},</p>
-        <p>We regret to inform you that your reservation on ${reservationDateTime} has been cancelled.</p>
-        <p>If this was unintentional, feel free to rebook anytime.</p>
+        <div style="font-family: sans-serif; padding: 20px;">
+          <h1 style="color: #b91c1c;">Reservation Cancelled</h1>
+          <p>Hi <strong>${customerName}</strong>,</p>
+          <p>We're writing to let you know your reservation on <strong>${reservationDateTime}</strong> has been cancelled.</p>
+          <p>If this was unintentional, you're welcome to rebook anytime at <strong>Sahrati</strong>.</p>
+          <p style="margin-top: 24px;">— Sahrati Team</p>
+        </div>
       `,
     };
   }

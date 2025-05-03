@@ -1,9 +1,9 @@
-// ✅ components/dashboard/newReservation.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { getAvailableTables, createReservation } from '@/lib/supabase/calendar';
 import { createCustomerIfUnique } from '@/lib/supabase/customers';
+import { sendEmail } from '@/lib/supabase/email';
 
 export const NewReservationModal = ({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) => {
   const [partySize, setPartySize] = useState(2);
@@ -42,7 +42,7 @@ export const NewReservationModal = ({ onClose, onComplete }: { onClose: () => vo
     try {
       const customer_id = await createCustomerIfUnique(customerName, customerEmail);
 
-      await createReservation({
+      const { id: reservationId } = await createReservation({
         customer_id,
         table_id: selectedTable,
         reservation_time: reservationTime,
@@ -50,14 +50,13 @@ export const NewReservationModal = ({ onClose, onComplete }: { onClose: () => vo
         special_instructions: specialInstructions,
       });
 
-      await fetch('/api/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: customerEmail,
-          subject: 'Reservation Confirmed',
-          messageHtml: `<p>Hello ${customerName}, your reservation is confirmed for ${reservationTime}.</p>`
-        })
+      await sendEmail({
+        reservationId,
+        toEmail: customerEmail,
+        customerName,
+        reservationDateTime: reservationTime,
+        partySize,
+        type: 'confirmation',
       });
 
       setSubmitted(true);

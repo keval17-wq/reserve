@@ -1,4 +1,3 @@
-// ✅ lib/supabase/calendar.ts
 import { supabase } from '@/lib/supabaseClient';
 
 // Type-safe payload for reservation
@@ -10,10 +9,18 @@ type ReservationPayload = {
   special_instructions?: string;
 };
 
-// ✅ Create a new reservation
-export const createReservation = async (payload: ReservationPayload) => {
-  const { error } = await supabase.from('reservations').insert([payload]);
+// ✅ Create a new reservation and return its ID
+export const createReservation = async (
+  payload: ReservationPayload
+): Promise<{ id: string }> => {
+  const { data, error } = await supabase
+    .from('reservations')
+    .insert([payload])
+    .select('id')
+    .single();
+
   if (error) throw new Error(error.message);
+  return { id: data.id };
 };
 
 // ✅ Get available tables for a given time slot and party size
@@ -49,10 +56,10 @@ export const getAvailableTables = async (
   return allTables.filter((t) => !unavailableIds.includes(t.id));
 };
 
-// ✅ Get all reservations for a specific month
+// ✅ Get all reservations for a specific month (UTC safe)
 export const getReservationsByMonth = async (year: number, month: number) => {
-  const startDate = new Date(year, month - 1, 1).toISOString();
-  const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+  const startDate = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59)).toISOString();
 
   const { data, error } = await supabase
     .from('reservations')
