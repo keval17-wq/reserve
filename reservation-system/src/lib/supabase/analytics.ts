@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabaseClient';
 
+export type RevenueTrend = {
+  date: string;
+  revenue: number;
+};
+
 export const getAnalyticsOverview = async () => {
   const [resData, revenueData, customerData, tableData] = await Promise.all([
     supabase.from('reservations').select('*'),
@@ -26,7 +31,7 @@ export const getAnalyticsOverview = async () => {
   };
 };
 
-export const getRevenueTrends = async () => {
+export const getRevenueTrends = async (): Promise<RevenueTrend[]> => {
   const { data, error } = await supabase
     .from('reservations')
     .select('price, reservation_time')
@@ -36,9 +41,11 @@ export const getRevenueTrends = async () => {
 
   const trends: Record<string, number> = {};
   (data ?? []).forEach((res) => {
-    const day = new Date(res.reservation_time).toLocaleDateString('en-US', { weekday: 'short' });
+    const day = new Date(res.reservation_time).toLocaleDateString('en-US', {
+      weekday: 'short',
+    });
     trends[day] = (trends[day] ?? 0) + (res.price ?? 0);
   });
 
-  return Object.entries(trends).map(([day, revenue]) => ({ day, revenue }));
+  return Object.entries(trends).map(([date, revenue]) => ({ date, revenue }));
 };

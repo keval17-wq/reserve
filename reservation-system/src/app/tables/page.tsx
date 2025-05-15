@@ -2,15 +2,33 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getTablesWithReservations, addTable, cancelReservationById } from '@/lib/supabase/tables';
+import {
+  getTablesWithReservations,
+  addTable,
+  cancelReservationById,
+} from '@/lib/supabase/tables';
 import { TableCard } from '@/components/tables/tableCard';
 import { AddTableModal } from '@/components/tables/addTableModal';
 import { ReservationDetailModal } from '@/components/tables/reservationDetailModal';
 
+type Reservation = {
+  id: string;
+  time: string;
+  customer_name: string;
+};
+
+type TableData = {
+  id: string;
+  tableNumber: number;
+  seats: number;
+  status: string;
+  reservations: Reservation[];
+};
+
 export default function TablesPage() {
-  const [tables, setTables] = useState<any[]>([]);
+  const [tables, setTables] = useState<TableData[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
   const fetchTables = async () => {
     try {

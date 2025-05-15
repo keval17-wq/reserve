@@ -11,7 +11,12 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-export const RevenueLineChart = ({ data }: { data: any[] }) => {
+type RevenueData = {
+  day: string;
+  revenue: number;
+};
+
+export const RevenueLineChart = ({ data }: { data: RevenueData[] }) => {
   return (
     <div className="w-full h-[300px] bg-white rounded shadow p-4">
       <ResponsiveContainer width="100%" height="100%">

@@ -32,7 +32,12 @@ const DashboardPage = () => {
   const [totalReservations, setTotalReservations] = useState<number>(0);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
   const [occupancyRate, setOccupancyRate] = useState<number>(0);
-  const [recentCustomers, setRecentCustomers] = useState<any[]>([]);
+  type RecentCustomer = {
+    name: string;
+    created_at: string;
+  };
+
+  const [recentCustomers, setRecentCustomers] = useState<RecentCustomer[]>([]);
   const [showNewReservation, setShowNewReservation] = useState(false);
 
   const fetchData = async () => {
@@ -61,7 +66,7 @@ const DashboardPage = () => {
       <div className="mb-4 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-600">A snapshot of your restaurant's performance</p>
+          <p className="text-sm text-gray-600">A snapshot of your restaurant&rsquo;s performance</p>
         </div>
         <div className="flex space-x-2">
           <button

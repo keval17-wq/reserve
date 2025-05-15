@@ -3,11 +3,27 @@
 import React, { useEffect, useState } from 'react';
 import { getAnalyticsOverview, getRevenueTrends } from '@/lib/supabase/analytics';
 import { OverviewCard } from '@/components/analytics/overviewCard';
-import { RevenueLineChart } from '../../components/analytics/revenueLineChart';
+import { RevenueLineChart } from '@/components/analytics/revenueLineChart';
+
+type OverviewData = {
+  totalRevenue: number;
+  totalReservations: number;
+  totalCustomers: number;
+  occupancyRate: number;
+  revenueDelta: number;
+  reservationsDelta: number;
+  customersDelta: number;
+  occupancyDelta: number;
+};
+
+type RevenueTrend = {
+  date: string;
+  revenue: number;
+};
 
 export default function AnalyticsPage() {
-  const [overview, setOverview] = useState<any>(null);
-  const [trendData, setTrendData] = useState<any[]>([]);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [trendData, setTrendData] = useState<RevenueTrend[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,7 +60,7 @@ export default function AnalyticsPage() {
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold text-gray-700">Revenue Trends</h2>
-        <RevenueLineChart data={trendData} />
+        <RevenueLineChart data={trendData.map(({ date, revenue }) => ({ day: date, revenue }))} />
       </div>
     </div>
   );

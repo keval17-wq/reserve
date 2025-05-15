@@ -1,8 +1,13 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+interface ChartData {
+    name: string;
+    [key: string]: number | string;
+}
+
 interface ChartProps {
-    data: any[];
+    data: ChartData[];
     dataKey: string;
     title: string;
 }
