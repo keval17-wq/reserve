@@ -60,7 +60,10 @@ export const getAvailableTables = async (
   return allTables.filter((t) => !unavailableIds.includes(t.id));
 };
 
-export const getReservationsByMonth = async (): Promise<Reservation[]> => {
+export const getReservationsByMonth = async (
+  year: number,
+  month: number
+): Promise<Reservation[]> => {
   const { data, error } = await supabase
     .from('reservations')
     .select('id, customer_name, reservation_time, table_number');
@@ -68,7 +71,6 @@ export const getReservationsByMonth = async (): Promise<Reservation[]> => {
   if (error) throw new Error(error.message);
   return (data ?? []) as Reservation[];
 };
-
 
 
 // // ✅ lib/supabase/calendar.ts
