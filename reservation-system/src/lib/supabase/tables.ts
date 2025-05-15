@@ -1,7 +1,21 @@
 import { supabase } from '@/lib/supabaseClient';
 
-// Get all tables and their reservations
-export const getTablesWithReservations = async () => {
+type ReservationSummary = {
+  id: string;
+  time: string;
+  customer_name: string;
+};
+
+type TableWithReservations = {
+  id: string;
+  tableNumber: number;
+  status: string;
+  seats: number;
+  reservations: ReservationSummary[];
+};
+
+// ✅ Get all tables and their reservations
+export const getTablesWithReservations = async (): Promise<TableWithReservations[]> => {
   const { data: tables, error } = await supabase
     .from('tables')
     .select(`
@@ -18,12 +32,12 @@ export const getTablesWithReservations = async () => {
 
   if (error) throw new Error(error.message);
 
-  return (tables ?? []).map((table: any) => ({
+  return (tables ?? []).map((table: any): TableWithReservations => ({
     id: table.id,
     tableNumber: table.table_number,
-    status: table.status,
+    status: table.status ?? 'unknown',
     seats: table.seats,
-    reservations: (table.reservations ?? []).map((res: any) => ({
+    reservations: (table.reservations ?? []).map((res: any): ReservationSummary => ({
       id: res.id,
       customer_name: res.customers?.name ?? 'Unknown',
       time: res.reservation_time,
@@ -31,8 +45,8 @@ export const getTablesWithReservations = async () => {
   }));
 };
 
-// Add a new table
-export const addTable = async (tableNumber: number, seats: number) => {
+// ✅ Add a new table
+export const addTable = async (tableNumber: number, seats: number): Promise<void> => {
   const { error } = await supabase
     .from('tables')
     .insert([{ table_number: tableNumber, seats, status: 'available' }]);
@@ -40,8 +54,8 @@ export const addTable = async (tableNumber: number, seats: number) => {
   if (error) throw new Error(error.message);
 };
 
-// Cancel a reservation
-export const cancelReservationById = async (id: string) => {
+// ✅ Cancel a reservation by ID
+export const cancelReservationById = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('reservations')
     .update({ status: 'cancelled' })
