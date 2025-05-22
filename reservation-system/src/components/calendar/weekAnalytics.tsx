@@ -1,44 +1,59 @@
-// ✅ components/calendar/weekAnalytics.tsx
-
 'use client';
 
 import React from 'react';
 
-type DayData = {
-  day: string; // e.g., 'Monday'
-  count: number; // number of reservations
+type Props = {
+  weekData: {
+    date: string;
+    reservations: { id: string }[];
+  }[];
 };
 
-interface WeekAnalyticsProps {
-  data: DayData[];
-}
-
-export const WeekAnalytics: React.FC<WeekAnalyticsProps> = ({ data }) => {
-  const total = data.reduce((sum, d) => sum + d.count, 0);
-  const max = Math.max(...data.map(d => d.count), 1); // avoid division by 0
-
+export const WeekAnalytics = ({ weekData }: Props) => {
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800">Weekly Analytics</h3>
-      <ul className="space-y-2">
-        {data.map((day) => (
-          <li key={day.day} className="flex justify-between items-center text-sm text-gray-700">
-            <span>{day.day}</span>
-            <div className="flex items-center space-x-2">
-              <span>{day.count}</span>
-              <div className="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-blue-500 h-2 rounded-full"
-                  style={{ width: `${(day.count / max) * 100}%` }}
-                />
-              </div>
-            </div>
-          </li>
+    <div className="bg-white p-4 border rounded shadow-md mt-6 w-full">
+      <h2 className="text-base sm:text-lg font-semibold mb-4 text-gray-800">
+        Weekly Summary
+      </h2>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {weekData.map((day) => (
+          <div key={day.date} className="text-center border p-2 rounded bg-gray-50">
+            <p className="text-xs sm:text-sm text-gray-600">{day.date}</p>
+            <p className="text-lg font-bold text-blue-600">{day.reservations.length}</p>
+            <p className="text-xs text-gray-500">reservations</p>
+          </div>
         ))}
-      </ul>
-      <div className="pt-4 mt-4 border-t text-right text-xs text-gray-500">
-        Total Reservations: {total}
       </div>
     </div>
   );
 };
+
+
+// 'use client';
+
+// import React from 'react';
+
+// type Props = {
+//   weekData: {
+//     date: string;
+//     reservations: { id: string }[];
+//   }[];
+// };
+
+// export const WeekAnalytics = ({ weekData }: Props) => {
+//   return (
+//     <div className="bg-white p-4 border rounded shadow-md mt-6">
+//       <h2 className="text-lg font-semibold mb-4 text-gray-800">Weekly Summary</h2>
+//       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+//         {weekData.map((day) => (
+//           <div key={day.date} className="text-center border p-2 rounded bg-gray-50">
+//             <p className="text-sm text-gray-600">{day.date}</p>
+//             <p className="text-xl font-bold text-blue-600">{day.reservations.length}</p>
+//             <p className="text-xs text-gray-500">reservations</p>
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// };
+

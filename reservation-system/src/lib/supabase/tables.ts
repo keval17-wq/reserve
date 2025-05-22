@@ -14,7 +14,7 @@ type TableWithReservations = {
   reservations: ReservationSummary[];
 };
 
-// ✅ Get all tables and their reservations
+//  Get all tables and their reservations
 export const getTablesWithReservations = async (): Promise<TableWithReservations[]> => {
   const { data: tables, error } = await supabase
     .from('tables')
@@ -45,7 +45,7 @@ export const getTablesWithReservations = async (): Promise<TableWithReservations
   }));
 };
 
-// ✅ Add a new table
+// Add a new table
 export const addTable = async (tableNumber: number, seats: number): Promise<void> => {
   const { error } = await supabase
     .from('tables')
@@ -54,7 +54,7 @@ export const addTable = async (tableNumber: number, seats: number): Promise<void
   if (error) throw new Error(error.message);
 };
 
-// ✅ Cancel a reservation by ID
+//  Cancel a reservation by ID
 export const cancelReservationById = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('reservations')

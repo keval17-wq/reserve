@@ -115,7 +115,7 @@ const DashboardPage = () => {
       </section>
 
       {/* Analytics Overview Section */}
-      <section>
+      {/* <section>
         <h2 className="text-xl font-semibold text-gray-800 mb-4">Analytics Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <AnalyticsOverviewCard
@@ -143,7 +143,7 @@ const DashboardPage = () => {
             icon={<Clock className="h-5 w-5" />}
           />
         </div>
-      </section>
+      </section> */}
 
       {/* Table Status Section */}
       <section>
