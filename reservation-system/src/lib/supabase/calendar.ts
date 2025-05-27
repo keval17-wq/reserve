@@ -1,8 +1,11 @@
+// src/lib/supabase/calendar.ts
+
 import { supabase } from '@/lib/supabaseClient';
 
 export type Reservation = {
   id: string;
   customer_name: string;
+  customer_email: string;
   reservation_time: string;
   table_number: number;
 };
@@ -15,6 +18,9 @@ type ReservationPayload = {
   special_instructions?: string;
 };
 
+// ─────────────────────────────────────────────────
+// 1️⃣ Create a reservation (identical to before)
+// ─────────────────────────────────────────────────
 export const createReservation = async (
   payload: ReservationPayload
 ): Promise<{ id: string }> => {
@@ -23,208 +29,116 @@ export const createReservation = async (
     .insert([payload])
     .select('id')
     .single();
-
   if (error) throw new Error(error.message);
   return { id: data.id };
 };
 
+// ─────────────────────────────────────────────────
+// 2️⃣ Get all tables that can seat this party & aren’t booked
+// ─────────────────────────────────────────────────
 export const getAvailableTables = async (
   date: string,
   time: string,
   partySize: number
 ) => {
-  const reservationStart = new Date(`${date}T${time}`);
-  const reservationEnd = new Date(reservationStart.getTime() + 2 * 60 * 60 * 1000);
+  const start = new Date(`${date}T${time}`);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
-  const { data: allTables, error: tablesError } = await supabase
+  const { data: allTables, error: tblErr } = await supabase
     .from('tables')
-    .select('*')
+    .select('id, table_number, seats, status')
+
     .gte('seats', partySize);
+  if (tblErr) throw new Error(tblErr.message);
 
-  if (tablesError) throw new Error(tablesError.message);
-
-  const { data: reservations, error: reservationsError } = await supabase
+  const { data: resvs, error: resErr } = await supabase
     .from('reservations')
     .select('table_id, reservation_time');
+  if (resErr) throw new Error(resErr.message);
 
-  if (reservationsError) throw new Error(reservationsError.message);
-
-  const unavailableIds = reservations
-    .filter((res) => {
-      const resStart = new Date(res.reservation_time);
-      const resEnd = new Date(resStart.getTime() + 2 * 60 * 60 * 1000);
-      return resStart < reservationEnd && resEnd > reservationStart;
+  const busy = (resvs ?? [])
+    .filter(r => {
+      const s = new Date(r.reservation_time);
+      const e = new Date(s.getTime() + 2 * 60 * 60 * 1000);
+      return s < end && e > start;
     })
-    .map((res) => res.table_id);
+    .map(r => r.table_id);
 
-  return allTables.filter((t) => !unavailableIds.includes(t.id));
+  return (allTables ?? []).filter(t => !busy.includes(t.id));
+};
+
+// ─────────────────────────────────────────────────
+// 3️⃣ Auto-assign a random available table
+// ─────────────────────────────────────────────────
+export const getRandomAvailableTable = async (
+  date: string,
+  time: string,
+  partySize: number
+): Promise<string | null> => {
+  const candidates = await getAvailableTables(date, time, partySize);
+  if (candidates.length === 0) return null;
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  return pick.id;
+};
+
+// ─────────────────────────────────────────────────
+// 4️⃣ Day-view: all reservations on one date
+// ─────────────────────────────────────────────────
+export const getReservationsByDate = async (
+  isoDate: string
+): Promise<Reservation[]> => {
+  const start = `${isoDate}T00:00:00.000Z`;
+  const end = `${isoDate}T23:59:59.999Z`;
+  const { data, error } = await supabase
+    .from('reservations_extended')
+    .select('*')
+    .gte('reservation_time', start)
+    .lt('reservation_time', end)
+    .order('reservation_time', { ascending: true });
+  if (error) throw new Error(error.message);
+  return data as Reservation[];
+};
+
+// ─────────────────────────────────────────────────
+// 5️⃣ Week-view: count of reservations Mon–Sun
+// ─────────────────────────────────────────────────
+export const getWeekCounts = async (
+  mondayIsoDate: string
+): Promise<Record<string, number>> => {
+  const start = new Date(mondayIsoDate);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('reservation_time')
+    .gte('reservation_time', start.toISOString())
+    .lt('reservation_time', end.toISOString());
+  if (error) throw new Error(error.message);
+
+  const counts: Record<string, number> = {
+    Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0,
+  };
+  (data ?? []).forEach(r => {
+    const day = new Date(r.reservation_time)
+      .toLocaleDateString('en-US', { weekday: 'short' });
+    counts[day] += 1;
+  });
+  return counts;
 };
 
 export const getReservationsByMonth = async (
   year: number,
   month: number
 ): Promise<Reservation[]> => {
+  const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month, 1, 0, 0, 0));
   const { data, error } = await supabase
-    .from('reservations')
-    .select('id, customer_name, reservation_time, table_number');
-
+    .from('reservations_extended')
+    .select('*')
+    .gte('reservation_time', start.toISOString())
+    .lt('reservation_time', end.toISOString())
+    .order('reservation_time', { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []) as Reservation[];
+  return data as Reservation[];
 };
-
-
-// // ✅ lib/supabase/calendar.ts
-// import { supabase } from '@/lib/supabaseClient';
-
-// export type Reservation = {
-//   id: string;
-//   customer_name: string;
-//   reservation_time: string;
-//   table_number: number;
-// };
-
-// // Type-safe payload for reservation
-// type ReservationPayload = {
-//   customer_id: string;
-//   table_id: string;
-//   reservation_time: string;
-//   price: number;
-//   special_instructions?: string;
-// };
-
-// // ✅ Create a new reservation and return its ID
-// export const createReservation = async (
-//   payload: ReservationPayload
-// ): Promise<{ id: string }> => {
-//   const { data, error } = await supabase
-//     .from('reservations')
-//     .insert([payload])
-//     .select('id')
-//     .single();
-
-//   if (error) throw new Error(error.message);
-//   return { id: data.id };
-// };
-
-// // ✅ Get available tables for a given time slot and party size
-// export const getAvailableTables = async (
-//   date: string,
-//   time: string,
-//   partySize: number
-// ) => {
-//   const reservationStart = new Date(`${date}T${time}`);
-//   const reservationEnd = new Date(reservationStart.getTime() + 2 * 60 * 60 * 1000);
-
-//   const { data: allTables, error: tablesError } = await supabase
-//     .from('tables')
-//     .select('*')
-//     .gte('seats', partySize);
-
-//   if (tablesError) throw new Error(tablesError.message);
-
-//   const { data: reservations, error: reservationsError } = await supabase
-//     .from('reservations')
-//     .select('table_id, reservation_time');
-
-//   if (reservationsError) throw new Error(reservationsError.message);
-
-//   const unavailableIds = reservations
-//     .filter((res) => {
-//       const resStart = new Date(res.reservation_time);
-//       const resEnd = new Date(resStart.getTime() + 2 * 60 * 60 * 1000);
-//       return resStart < reservationEnd && resEnd > reservationStart;
-//     })
-//     .map((res) => res.table_id);
-
-//   return allTables.filter((t) => !unavailableIds.includes(t.id));
-// };
-
-// // ✅ Get all reservations for a specific month (typed result)
-// export const getReservationsByMonth = async (
-//   year: number,
-//   month: number
-// ): Promise<Reservation[]> => {
-//   const startDate = new Date(Date.UTC(year, month - 1, 1)).toISOString();
-//   const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59)).toISOString();
-
-//   const { data, error } = await supabase
-//     .from('reservations')
-//     .select('id, customer_name, reservation_time, table_number');
-
-//   if (error) throw new Error(error.message);
-//   return (data ?? []) as Reservation[];
-// };
-
-
-// import { supabase } from '@/lib/supabaseClient';
-
-// // Type-safe payload for reservation
-// type ReservationPayload = {
-//   customer_id: string;
-//   table_id: string;
-//   reservation_time: string;
-//   price: number;
-//   special_instructions?: string;
-// };
-
-// // ✅ Create a new reservation and return its ID
-// export const createReservation = async (
-//   payload: ReservationPayload
-// ): Promise<{ id: string }> => {
-//   const { data, error } = await supabase
-//     .from('reservations')
-//     .insert([payload])
-//     .select('id')
-//     .single();
-
-//   if (error) throw new Error(error.message);
-//   return { id: data.id };
-// };
-
-// // ✅ Get available tables for a given time slot and party size
-// export const getAvailableTables = async (
-//   date: string,
-//   time: string,
-//   partySize: number
-// ) => {
-//   const reservationStart = new Date(`${date}T${time}`);
-//   const reservationEnd = new Date(reservationStart.getTime() + 2 * 60 * 60 * 1000);
-
-//   const { data: allTables, error: tablesError } = await supabase
-//     .from('tables')
-//     .select('*')
-//     .gte('seats', partySize);
-
-//   if (tablesError) throw new Error(tablesError.message);
-
-//   const { data: reservations, error: reservationsError } = await supabase
-//     .from('reservations')
-//     .select('table_id, reservation_time');
-
-//   if (reservationsError) throw new Error(reservationsError.message);
-
-//   const unavailableIds = reservations
-//     .filter((res) => {
-//       const resStart = new Date(res.reservation_time);
-//       const resEnd = new Date(resStart.getTime() + 2 * 60 * 60 * 1000);
-//       return resStart < reservationEnd && resEnd > reservationStart;
-//     })
-//     .map((res) => res.table_id);
-
-//   return allTables.filter((t) => !unavailableIds.includes(t.id));
-// };
-
-// // ✅ Get all reservations for a specific month (UTC safe)
-// export const getReservationsByMonth = async (year: number, month: number) => {
-//   const startDate = new Date(Date.UTC(year, month - 1, 1)).toISOString();
-//   const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59)).toISOString();
-
-//   const { data, error } = await supabase
-//     .from('reservations')
-//     .select('*')
-//     .gte('reservation_time', startDate)
-//     .lte('reservation_time', endDate);
-
-//   if (error) throw new Error(error.message);
-//   return data ?? [];
-// };

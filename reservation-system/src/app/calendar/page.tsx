@@ -44,9 +44,12 @@ export default function CalendarPage() {
           month: 'short',
           day: 'numeric',
         }),
-        reservations: reservations.filter(r =>
-          r.reservation_time.startsWith(iso)
-        ),
+        reservations: reservations.filter(r => {
+          const localDate = new Date(r.reservation_time).toLocaleDateString('en-CA'); // YYYY-MM-DD
+          return localDate === iso;
+        }),
+
+
       };
     });
   };
@@ -83,7 +86,7 @@ export default function CalendarPage() {
         selectedDate={selectedDay}
         onSelectDay={(day) => setSelectedDay(day.date)}
       />
-      
+
       <ReservationList
         dayLabel={selectedDayData?.label || ''}
         reservations={selectedDayData?.reservations || []}
@@ -101,105 +104,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
-
-// 'use client';
-
-// import React, { useEffect, useState } from 'react';
-// import { getReservationsByMonth, Reservation } from '@/lib/supabase/calendar';
-// import { WeekView } from '@/components/calendar/weekView';
-// import { ReservationModal } from '@/components/calendar/reservationModal';
-
-// export default function CalendarPage() {
-//   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
-//     const today = new Date();
-//     const start = new Date(today);
-//     start.setDate(today.getDate() - today.getDay()); // Sunday as start of week
-//     return start;
-//   });
-
-//   const [reservations, setReservations] = useState<Reservation[]>([]);
-//   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
-//   const [selectedDay, setSelectedDay] = useState<string>(() => {
-//     return new Date().toISOString().split('T')[0]; // today by default
-//   });
-
-//   useEffect(() => {
-//     const fetchReservations = async () => {
-//       const year = currentWeekStart.getFullYear();
-//       const month = currentWeekStart.getMonth() + 1;
-//       const result = await getReservationsByMonth(year, month);
-//       setReservations(result);
-//     };
-
-//     fetchReservations();
-//   }, [currentWeekStart]);
-
-//   const getWeekData = () => {
-//     return Array.from({ length: 7 }, (_, i) => {
-//       const dayDate = new Date(currentWeekStart);
-//       dayDate.setDate(currentWeekStart.getDate() + i);
-//       const iso = dayDate.toISOString().split('T')[0];
-//       const todayIso = new Date().toISOString().split('T')[0];
-
-//       return {
-//         iso,
-//         date: dayDate.toLocaleDateString('en-US', {
-//           weekday: 'long',
-//           month: 'short',
-//           day: 'numeric',
-//         }),
-//         isToday: iso === todayIso,
-//         isSelected: iso === selectedDay,
-//         reservations: reservations.filter((r) =>
-//           r.reservation_time.startsWith(iso)
-//         ),
-//       };
-//     });
-//   };
-
-//   const goToNextWeek = () => {
-//     setCurrentWeekStart((prev) => new Date(prev.getTime() + 7 * 24 * 60 * 60 * 1000));
-//   };
-
-//   const goToPrevWeek = () => {
-//     setCurrentWeekStart((prev) => new Date(prev.getTime() - 7 * 24 * 60 * 60 * 1000));
-//   };
-
-//   return (
-//     <div className="p-6 space-y-6 bg-white min-h-screen text-black">
-//       <div className="flex justify-between items-center">
-//         <h1 className="text-2xl font-bold">Calendar</h1>
-//         <div className="space-x-2">
-//           <button
-//             onClick={goToPrevWeek}
-//             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm"
-//           >
-//             ← Previous
-//           </button>
-//           <button
-//             onClick={goToNextWeek}
-//             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm"
-//           >
-//             Next →
-//           </button>
-//         </div>
-//       </div>
-
-//       <WeekView
-//         weekData={getWeekData()}
-//         onSelectReservation={setSelectedReservation}
-//       />
-
-//       {selectedReservation && (
-//         <ReservationModal
-//           reservation={selectedReservation}
-//           onCancel={() => setSelectedReservation(null)}
-//           onMove={() => setSelectedReservation(null)}
-//           onClose={() => setSelectedReservation(null)}
-//         />
-//       )}
-//     </div>
-//   );
-// }
-

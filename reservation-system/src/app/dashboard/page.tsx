@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { DashboardStatsCard } from '@/components/dashboard/dashboardStatsCard';
-import { AnalyticsOverviewCard } from '@/components/dashboard/analyticsOverviewCard';
+//import { AnalyticsOverviewCard } from '@/components/dashboard/analyticsOverviewCard';
 import { TableStatusCard } from '@/components/dashboard/tableStatusCard';
 import { WeeklyPerformanceChart } from '@/components/dashboard/weeklyPerformanceChart';
 import { RecentCustomersCard } from '@/components/dashboard/recentCustomersCard';
@@ -19,7 +19,7 @@ import {
   DollarSign,
   Users,
   Percent,
-  Clock,
+  //Clock,
   Table,
   CircleSlash,
   AlertTriangle,

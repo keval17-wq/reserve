@@ -1,12 +1,13 @@
 import { supabase } from '@/lib/supabaseClient';
 
-type ReservationSummary = {
+export type ReservationSummary = {
   id: string;
   time: string;
   customer_name: string;
+  customer_email: string;
 };
 
-type TableWithReservations = {
+export type TableWithReservations = {
   id: string;
   tableNumber: number;
   status: string;
@@ -14,9 +15,23 @@ type TableWithReservations = {
   reservations: ReservationSummary[];
 };
 
-//  Get all tables and their reservations
+type RawReservation = {
+  id: string;
+  reservation_time: string;
+  customers: { name?: string; email?: string } | null;
+};
+
+type RawTable = {
+  id: string;
+  table_number: number;
+  status: string | null;
+  seats: number;
+  reservations: RawReservation[] | null;
+};
+
+// ✅ Get all tables and their linked reservations
 export const getTablesWithReservations = async (): Promise<TableWithReservations[]> => {
-  const { data: tables, error } = await supabase
+  const { data, error } = await supabase
     .from('tables')
     .select(`
       id,
@@ -26,26 +41,30 @@ export const getTablesWithReservations = async (): Promise<TableWithReservations
       reservations (
         id,
         reservation_time,
-        customers ( name )
+        customers (
+          name,
+          email
+        )
       )
     `);
 
   if (error) throw new Error(error.message);
 
-  return (tables ?? []).map((table: any): TableWithReservations => ({
+  return (data as RawTable[]).map((table): TableWithReservations => ({
     id: table.id,
     tableNumber: table.table_number,
     status: table.status ?? 'unknown',
     seats: table.seats,
-    reservations: (table.reservations ?? []).map((res: any): ReservationSummary => ({
+    reservations: (table.reservations ?? []).map((res): ReservationSummary => ({
       id: res.id,
-      customer_name: res.customers?.name ?? 'Unknown',
       time: res.reservation_time,
+      customer_name: res.customers?.name ?? 'Unknown',
+      customer_email: res.customers?.email ?? 'unknown@email.com',
     })),
   }));
 };
 
-// Add a new table
+// ✅ Add a new table
 export const addTable = async (tableNumber: number, seats: number): Promise<void> => {
   const { error } = await supabase
     .from('tables')
@@ -54,7 +73,7 @@ export const addTable = async (tableNumber: number, seats: number): Promise<void
   if (error) throw new Error(error.message);
 };
 
-//  Cancel a reservation by ID
+// ✅ Cancel a reservation
 export const cancelReservationById = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('reservations')

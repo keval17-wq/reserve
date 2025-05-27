@@ -1,55 +1,57 @@
-'use client';
+// components/tables/addTableModal.tsx
 
 import React, { useState } from 'react';
+import { addTable } from '@/lib/supabase/tables';
 
 type Props = {
-  existingNumbers: number[];
-  onAdd: (tableNumber: number, seats: number) => void;
+  isOpen: boolean;
   onClose: () => void;
+  onTableAdded: () => void;
 };
 
-export const AddTableModal = ({ existingNumbers, onAdd, onClose }: Props) => {
-  const [number, setNumber] = useState<number>(0);
-  const [seats, setSeats] = useState<number>(4);
-  const [error, setError] = useState('');
+export const AddTableModal = ({ isOpen, onClose, onTableAdded }: Props) => {
+  const [tableNumber, setTableNumber] = useState('');
+  const [seats, setSeats] = useState(4);
+  const [loading, setLoading] = useState(false);
 
-  const handleAdd = () => {
-    if (existingNumbers.includes(number)) {
-      setError('Table number already exists.');
-      return;
-    }
-    onAdd(number, seats);
+  const handleAdd = async () => {
+    setLoading(true);
+    await addTable(Number(tableNumber), seats);
+    setLoading(false);
+    onTableAdded();
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md space-y-4">
+    <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg w-full max-w-sm space-y-4">
         <h2 className="text-lg font-semibold">Add New Table</h2>
-
         <input
           type="number"
-          className="w-full border rounded px-3 py-1"
           placeholder="Table Number"
-          value={number}
-          onChange={(e) => setNumber(parseInt(e.target.value))}
+          className="w-full border p-2 rounded"
+          value={tableNumber}
+          onChange={(e) => setTableNumber(e.target.value)}
         />
         <input
           type="number"
-          className="w-full border rounded px-3 py-1"
           placeholder="Seats"
+          className="w-full border p-2 rounded"
           value={seats}
-          onChange={(e) => setSeats(parseInt(e.target.value))}
+          onChange={(e) => setSeats(Number(e.target.value))}
         />
-
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-
-        <div className="flex justify-end space-x-2 pt-2">
-          <button onClick={onClose} className="text-gray-500">Cancel</button>
-          <button onClick={handleAdd} className="bg-blue-600 text-white px-4 py-1 rounded">
-            Add Table
-          </button>
-        </div>
+        <button
+          onClick={handleAdd}
+          className="bg-blue-600 text-white px-4 py-2 rounded w-full"
+          disabled={loading}
+        >
+          {loading ? 'Adding...' : 'Add Table'}
+        </button>
+        <button onClick={onClose} className="text-sm text-gray-500 hover:underline w-full text-center">
+          Cancel
+        </button>
       </div>
     </div>
   );

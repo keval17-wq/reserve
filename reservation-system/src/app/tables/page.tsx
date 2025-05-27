@@ -1,108 +1,82 @@
-// ✅ /app/tables/page.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import {
-  getTablesWithReservations,
-  addTable,
-  cancelReservationById,
-} from '@/lib/supabase/tables';
-import { TableCard } from '@/components/tables/tableCard';
-import { AddTableModal } from '@/components/tables/addTableModal';
-import { ReservationDetailModal } from '@/components/tables/reservationDetailModal';
-
-type Reservation = {
-  id: string;
-  time: string;
-  customer_name: string;
-};
-
-type TableData = {
-  id: string;
-  tableNumber: number;
-  seats: number;
-  status: string;
-  reservations: Reservation[];
-};
+import { useEffect, useState } from 'react';
+import { getTablesWithReservations, addTable, cancelReservationById } from '@/lib/supabase/tables';
+import { sendEmail } from '@/lib/supabase/email';
+import { TableGrid } from '@/components/tables/tableGrid';
+import { TableFormModal } from '@/components/tables/tableFormModal';
+import type { TableWithReservations } from '@/lib/supabase/tables';
 
 export default function TablesPage() {
-  const [tables, setTables] = useState<TableData[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [tables, setTables] = useState<TableWithReservations[]>([]);
+  const [showModal, setShowModal] = useState(false);
 
-  const fetchTables = async () => {
+  const loadTables = async () => {
     try {
       const data = await getTablesWithReservations();
       setTables(data);
     } catch (err) {
-      console.error('Error fetching tables:', err);
+      console.error('Error loading tables:', err);
     }
   };
 
   useEffect(() => {
-    fetchTables();
+    loadTables();
   }, []);
+
+  const handleCancelReservation = async (
+    reservationId: string,
+    customerEmail: string,
+    customerName: string,
+    time: string,
+    partySize: number
+  ) => {
+    try {
+      await cancelReservationById(reservationId);
+
+      await sendEmail({
+        reservationId,
+        toEmail: customerEmail,
+        customerName,
+        reservationDateTime: new Date(time).toLocaleString(),
+        partySize,
+        type: 'cancel',
+      });
+
+      await loadTables();
+    } catch (error) {
+      console.error('Cancellation failed:', error);
+    }
+  };
 
   const handleAddTable = async (tableNumber: number, seats: number) => {
     try {
       await addTable(tableNumber, seats);
-      await fetchTables();
-    } catch (err) {
-      console.error('Failed to add table:', err);
-    }
-  };
-
-  const handleCancelReservation = async (id: string) => {
-    try {
-      await cancelReservationById(id);
-      setSelectedReservation(null);
-      await fetchTables();
-    } catch (err) {
-      console.error('Failed to cancel reservation:', err);
+      setShowModal(false);
+      await loadTables();
+    } catch (error) {
+      console.error('Add table failed:', error);
     }
   };
 
   return (
-    <div className="p-6 space-y-6 bg-white text-black">
+    <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Tables</h1>
-          <p className="text-sm text-gray-600">Manage restaurant tables and view live reservations.</p>
-        </div>
+        <h1 className="text-2xl font-bold">Tables</h1>
         <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow"
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
         >
-          + Add Table
+          Add Table
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-        {tables.map((table) => (
-          <TableCard
-            key={table.id}
-            tableNumber={table.tableNumber}
-            status={table.status}
-            seats={table.seats}
-            reservations={table.reservations}
-            onView={(res) => setSelectedReservation(res)}
-          />
-        ))}
-      </div>
+      <TableGrid tables={tables} onCancel={handleCancelReservation} />
 
-      {showAddModal && (
-        <AddTableModal
-          existingNumbers={tables.map((t) => t.tableNumber)}
-          onAdd={handleAddTable}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
-
-      {selectedReservation && (
-        <ReservationDetailModal
-          reservation={selectedReservation}
-          onCancel={() => handleCancelReservation(selectedReservation.id)}
-          onClose={() => setSelectedReservation(null)}
+      {showModal && (
+        <TableFormModal
+          onClose={() => setShowModal(false)}
+          onSubmit={handleAddTable}
         />
       )}
     </div>

@@ -7,6 +7,7 @@ import { ReservationCard } from './reservationCard';
 type Reservation = {
   id: string;
   customer_name: string;
+  customer_email: string;
   reservation_time: string;
   table_number: number;
 };

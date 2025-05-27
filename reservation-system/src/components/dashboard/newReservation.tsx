@@ -1,219 +1,248 @@
-// ✅ components/dashboard/newReservation.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getAvailableTables, createReservation } from '@/lib/supabase/calendar';
+import { getAvailableTables, createReservation, getRandomAvailableTable } from '@/lib/supabase/calendar';
 import { createCustomerIfUnique } from '@/lib/supabase/customers';
 import { sendEmail } from '@/lib/supabase/email';
+import { XIcon, CheckCircleIcon } from '@heroicons/react/outline';
 
 type Table = {
   id: string;
-  table_number: number;
+  table_number: number | null;
   seats: number;
 };
 
-export const NewReservationModal = ({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) => {
+type Props = {
+  onClose: () => void;
+  onComplete: () => void;
+};
+
+export const NewReservationModal: React.FC<Props> = ({ onClose, onComplete }) => {
+  const [step, setStep] = useState<1 | 2>(1);
   const [partySize, setPartySize] = useState(2);
-  const [time, setTime] = useState('18:00');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [gap, setGap] = useState(30);
-  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+  const [time, setTime] = useState('18:00');
+  const [tables, setTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState('');
-  const [price, setPrice] = useState(0);
-  const [step, setStep] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-  const [specialInstructions, setSpecialInstructions] = useState('');
+  const [price, setPrice] = useState(0);
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const fetchTables = async () => {
       const now = new Date();
-      const selectedDateTime = new Date(`${date}T${time}`);
-      if (partySize && selectedDateTime > now) {
-        const tables = await getAvailableTables(date, time, partySize);
-        setAvailableTables(tables);
+      const desiredDateTime = new Date(`${date}T${time}`);
+      if (partySize > 0 && desiredDateTime > now) {
+        const available = await getAvailableTables(date, time, partySize);
+        setTables(
+          available.map((t: { id: string; table_number: number | null; seats: number }) => ({
+            id: t.id,
+            table_number: t.table_number ?? 0,
+            seats: t.seats,
+          }))
+        );
       } else {
-        setAvailableTables([]);
+        setTables([]);
       }
     };
     fetchTables();
   }, [partySize, date, time]);
 
-  const handleSubmit = async () => {
-    if (!customerEmail || !customerName || !selectedTable) return;
-    const reservationTime = `${date}T${time}`;
+  const next = () => setStep(2);
+  const back = () => setStep(1);
 
-    setSubmitting(true);
+  const submit = async () => {
+    setLoading(true);
     try {
-      const customer_id = await createCustomerIfUnique(customerName, customerEmail);
-
-      const { id: reservationId } = await createReservation({
-        customer_id,
-        table_id: selectedTable,
-        reservation_time: reservationTime,
+      const custId = await createCustomerIfUnique(customerName, customerEmail);
+      const tableId = selectedTable || (await getRandomAvailableTable(date, time, partySize))!;
+      if (!tableId) throw new Error('No tables available');
+      const { id: resId } = await createReservation({
+        customer_id: custId,
+        table_id: tableId,
+        reservation_time: `${date}T${time}`,
         price,
-        special_instructions: specialInstructions,
+        special_instructions: notes,
       });
-
       await sendEmail({
-        reservationId,
+        reservationId: resId,
         toEmail: customerEmail,
         customerName,
-        reservationDateTime: reservationTime,
+        reservationDateTime: `${date}T${time}`,
         partySize,
         type: 'confirmation',
       });
-
-      setSubmitted(true);
-      setTimeout(() => {
-        onComplete();
-      }, 1000);
-    } catch (err) {
-      console.error('Error submitting reservation:', err);
+      setSuccess(true);
+      setTimeout(onComplete, 1200);
+    } catch {
+      alert('Something went wrong, please retry.');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const generateTimeSlots = () => {
-    const slots: string[] = [];
-    const start = 10 * 60;
-    const end = 22 * 60;
-    for (let mins = start; mins <= end; mins += gap) {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      const label = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-      const slotTime = new Date(`${date}T${label}`);
-      if (slotTime > new Date()) slots.push(label);
+  const generateSlots = () => {
+    const s: string[] = [];
+    for (let m = 600; m <= 1320; m += 30) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0');
+      const mm = String(m % 60).padStart(2, '0');
+      const t = `${hh}:${mm}`;
+      if (new Date(`${date}T${t}`) > new Date()) s.push(t);
     }
-    return slots;
+    return s;
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white p-6 rounded-xl w-full max-w-2xl space-y-4 shadow-xl border">
-        <h2 className="text-xl font-semibold text-gray-800">New Reservation</h2>
+    <div className="fixed inset-0 bg-gray-900/70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
+        <div className="flex justify-between items-center px-6 py-4 border-b">
+          <h3 className="text-2xl font-semibold text-gray-800">New Reservation</h3>
+          <button onClick={onClose} className="p-1 text-gray-500 hover:text-gray-700">
+            <XIcon className="h-6 w-6" />
+          </button>
+        </div>
 
-        {step === 1 && (
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Customer Name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            />
-            <input
-              type="email"
-              placeholder="Customer Email"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            />
-            <textarea
-              placeholder="Special Instructions (optional)"
-              value={specialInstructions}
-              onChange={(e) => setSpecialInstructions(e.target.value)}
-              className="w-full border rounded px-3 py-2 h-20"
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="number"
-                value={partySize}
-                onChange={(e) => setPartySize(+e.target.value)}
-                placeholder="Party Size"
-                className="border rounded px-2 py-2 w-full"
-              />
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(+e.target.value)}
-                placeholder="Price"
-                className="border rounded px-2 py-2 w-full"
-              />
+        <div className="flex">
+          {[1, 2].map((i) => (
+            <div key={i} className="flex-1">
+              <div className={`h-2 ${step >= i ? 'bg-blue-600' : 'bg-gray-200'} transition-colors`} />
             </div>
+          ))}
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="border rounded px-2 py-2 w-full"
-              />
-              <select
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="border rounded px-2 py-2 w-full"
-              >
-                {generateTimeSlots().map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="px-6 py-8 space-y-6">
+          {step === 1 ? (
+            <div className="grid gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="jane@example.com"
+                  />
+                </div>
+              </div>
 
-            <div className="flex justify-between pt-2">
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-gray-500">Gap (min)</label>
-                <select
-                  value={gap}
-                  onChange={(e) => setGap(+e.target.value)}
-                  className="border rounded px-2 py-1 text-sm"
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Party Size</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={partySize}
+                    onChange={(e) => setPartySize(+e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Price ($)</label>
+                  <input
+                    type="number"
+                    step={0.01}
+                    value={price}
+                    onChange={(e) => setPrice(+e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Notes</label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                    placeholder="Allergies, preferences..."
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Date</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Time</label>
+                  <select
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="mt-1 w-full border rounded-lg px-3 py-2"
+                  >
+                    {generateSlots().map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <button
+                  onClick={next}
+                  disabled={!customerName || !customerEmail}
+                  className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
                 >
-                  <option value={15}>15</option>
-                  <option value={30}>30</option>
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Table</label>
+                <select
+                  value={selectedTable}
+                  onChange={(e) => setSelectedTable(e.target.value)}
+                  className="mt-1 w-full border rounded-lg px-3 py-2"
+                >
+                  <option value="">Auto-assign best fit</option>
+                  {tables.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Table {t.table_number ?? 'N/A'} (Seats: {t.seats})
+                    </option>
+                  ))}
                 </select>
               </div>
-              <button
-                onClick={() => setStep(2)}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Next
-              </button>
+
+              <div className="flex justify-between items-center">
+                <button onClick={back} className="text-sm text-gray-600 hover:underline">
+                  ← Back
+                </button>
+                <button
+                  onClick={submit}
+                  disabled={loading || success}
+                  className={`inline-flex items-center px-6 py-2 rounded-lg text-white transition 
+                    ${success
+                      ? 'bg-green-600'
+                      : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50'}`}
+                >
+                  {loading ? '…Submitting' : success ? <><CheckCircleIcon className="h-5 w-5 mr-1" /> Done</> : 'Confirm'}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-4">
-            <select
-              value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="">Select Table</option>
-              {availableTables.map((t) => (
-                <option key={t.id} value={t.id}>
-                  Table {t.table_number} (Seats: {t.seats})
-                </option>
-              ))}
-            </select>
-
-            <div className="flex justify-between">
-              <button onClick={() => setStep(1)} className="text-gray-600 hover:underline">
-                Back
-              </button>
-              <button
-                disabled={submitting}
-                onClick={handleSubmit}
-                className={`px-4 py-2 rounded text-white ${
-                  submitted ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {submitted ? 'Success' : 'Submit'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="text-right pt-2">
-          <button onClick={onClose} className="text-sm text-gray-400 hover:underline">
-            Cancel
-          </button>
+          )}
         </div>
       </div>
     </div>
@@ -221,175 +250,277 @@ export const NewReservationModal = ({ onClose, onComplete }: { onClose: () => vo
 };
 
 
+
+// // src/components/dashboard/newReservationModal.tsx
 // 'use client';
 
 // import React, { useEffect, useState } from 'react';
-// import { getAvailableTables, createReservation } from '@/lib/supabase/calendar';
+// import { getAvailableTables, createReservation, getRandomAvailableTable } from '@/lib/supabase/calendar';
 // import { createCustomerIfUnique } from '@/lib/supabase/customers';
 // import { sendEmail } from '@/lib/supabase/email';
+// import { XIcon, CheckCircleIcon } from '@heroicons/react/outline';
 
-// export const NewReservationModal = ({ onClose, onComplete }: { onClose: () => void; onComplete: () => void }) => {
+// type Table = { id: string; table_number: number; seats: number };
+
+// type Props = {
+//   onClose: () => void;
+//   onComplete: () => void;
+// };
+
+// export const NewReservationModal: React.FC<Props> = ({ onClose, onComplete }) => {
+//   const [step, setStep] = useState<1 | 2>(1);
 //   const [partySize, setPartySize] = useState(2);
-//   const [time, setTime] = useState('18:00');
 //   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+//   const [time, setTime] = useState('18:00');
 //   const [gap, setGap] = useState(30);
-//   const [availableTables, setAvailableTables] = useState<any[]>([]);
+//   const [tables, setTables] = useState<Table[]>([]);
 //   const [selectedTable, setSelectedTable] = useState('');
-//   const [price, setPrice] = useState(0);
-//   const [step, setStep] = useState(1);
-//   const [submitting, setSubmitting] = useState(false);
-//   const [submitted, setSubmitted] = useState(false);
 //   const [customerName, setCustomerName] = useState('');
 //   const [customerEmail, setCustomerEmail] = useState('');
-//   const [specialInstructions, setSpecialInstructions] = useState('');
+//   const [price, setPrice] = useState(0);
+//   const [notes, setNotes] = useState('');
+//   const [loading, setLoading] = useState(false);
+//   const [success, setSuccess] = useState(false);
 
 //   useEffect(() => {
-//     const fetchTables = async () => {
-//       const now = new Date();
-//       const selectedDateTime = new Date(`${date}T${time}`);
-//       if (partySize && selectedDateTime > now) {
-//         const tables = await getAvailableTables(date, time, partySize);
-//         setAvailableTables(tables);
-//       } else {
-//         setAvailableTables([]);
-//       }
+//     const fetch = async () => {
+//       try {
+//         const now = new Date();
+//         const dt = new Date(`${date}T${time}`);
+//         if (partySize > 0 && dt > now) {
+//           const available = await getAvailableTables(date, time, partySize);
+//           setTables(
+//             available.map((t: any) => ({
+//               id: t.id,
+//               table_number: t.table_number ?? 0,
+//               seats: t.seats,
+//             }))
+//           );
+//         } else {
+//           setTables([]);
+//         }
+//       } catch {}
 //     };
-//     fetchTables();
+//     fetch();
 //   }, [partySize, date, time]);
 
-//   const handleSubmit = async () => {
-//     if (!customerEmail || !customerName || !selectedTable) return;
-//     const reservationTime = `${date}T${time}`;
+//   const next = () => setStep(2);
+//   const back = () => setStep(1);
 
-//     setSubmitting(true);
+//   const submit = async () => {
+//     setLoading(true);
 //     try {
-//       const customer_id = await createCustomerIfUnique(customerName, customerEmail);
-
-//       const { id: reservationId } = await createReservation({
-//         customer_id,
-//         table_id: selectedTable,
-//         reservation_time: reservationTime,
+//       const custId = await createCustomerIfUnique(customerName, customerEmail);
+//       let tableId = selectedTable || (await getRandomAvailableTable(date, time, partySize))!;
+//       if (!tableId) throw new Error('No tables available');
+//       const { id: resId } = await createReservation({
+//         customer_id: custId,
+//         table_id: tableId,
+//         reservation_time: `${date}T${time}`,
 //         price,
-//         special_instructions: specialInstructions,
+//         special_instructions: notes,
 //       });
-
 //       await sendEmail({
-//         reservationId,
+//         reservationId: resId,
 //         toEmail: customerEmail,
 //         customerName,
-//         reservationDateTime: reservationTime,
+//         reservationDateTime: `${date}T${time}`,
 //         partySize,
 //         type: 'confirmation',
 //       });
-
-//       setSubmitted(true);
-//       setTimeout(() => {
-//         onComplete();
-//       }, 1000);
-//     } catch (err) {
-//       console.error('Error submitting reservation:', err);
+//       setSuccess(true);
+//       setTimeout(onComplete, 1200);
+//     } catch (e) {
+//       alert('Something went wrong, please retry.');
 //     } finally {
-//       setSubmitting(false);
+//       setLoading(false);
 //     }
 //   };
 
-//   const generateTimeSlots = () => {
-//     const slots: string[] = [];
-//     const start = 10 * 60;
-//     const end = 22 * 60;
-//     for (let mins = start; mins <= end; mins += gap) {
-//       const h = Math.floor(mins / 60);
-//       const m = mins % 60;
-//       const label = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-//       const slotTime = new Date(`${date}T${label}`);
-//       if (slotTime > new Date()) slots.push(label);
+//   const generateSlots = () => {
+//     const s: string[] = [];
+//     for (let m = 10 * 60; m <= 22 * 60; m += gap) {
+//       const hh = String(Math.floor(m / 60)).padStart(2, '0');
+//       const mm = String(m % 60).padStart(2, '0');
+//       const t = `${hh}:${mm}`;
+//       if (new Date(`${date}T${t}`) > new Date()) s.push(t);
 //     }
-//     return slots;
+//     return s;
 //   };
 
 //   return (
-//     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-//       <div className="bg-white p-6 rounded-xl w-full max-w-2xl space-y-4 shadow-xl border">
-//         <h2 className="text-xl font-semibold text-gray-800">New Reservation</h2>
+//     <div className="fixed inset-0 bg-gray-900/70 flex items-center justify-center p-4 z-50">
+//       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
+//         {/* Header */}
+//         <div className="flex justify-between items-center px-6 py-4 border-b">
+//           <h3 className="text-2xl font-semibold text-gray-800">New Reservation</h3>
+//           <button onClick={onClose} className="p-1 text-gray-500 hover:text-gray-700">
+//             <XIcon className="h-6 w-6" />
+//           </button>
+//         </div>
 
-//         {step === 1 && (
-//           <div className="space-y-4">
-//             <input
-//               type="text"
-//               placeholder="Customer Name"
-//               value={customerName}
-//               onChange={(e) => setCustomerName(e.target.value)}
-//               className="w-full border rounded px-3 py-2"
-//             />
-//             <input
-//               type="email"
-//               placeholder="Customer Email"
-//               value={customerEmail}
-//               onChange={(e) => setCustomerEmail(e.target.value)}
-//               className="w-full border rounded px-3 py-2"
-//             />
-//             <textarea
-//               placeholder="Special Instructions (optional)"
-//               value={specialInstructions}
-//               onChange={(e) => setSpecialInstructions(e.target.value)}
-//               className="w-full border rounded px-3 py-2 h-20"
-//             />
-
-//             <div className="grid grid-cols-2 gap-4">
-//               <input type="number" value={partySize} onChange={(e) => setPartySize(+e.target.value)} placeholder="Party Size" className="border rounded px-2 py-2 w-full" />
-//               <input type="number" value={price} onChange={(e) => setPrice(+e.target.value)} placeholder="Price" className="border rounded px-2 py-2 w-full" />
+//         {/* Stepper */}
+//         <div className="flex">
+//           {[1, 2].map((i) => (
+//             <div key={i} className="flex-1">
+//               <div
+//                 className={`h-2 ${
+//                   step >= i ? 'bg-blue-600' : 'bg-gray-200'
+//                 } transition-colors`}
+//               />
 //             </div>
+//           ))}
+//         </div>
 
-//             <div className="grid grid-cols-2 gap-4">
-//               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border rounded px-2 py-2 w-full" />
-//               <select value={time} onChange={(e) => setTime(e.target.value)} className="border rounded px-2 py-2 w-full">
-//                 {generateTimeSlots().map((slot) => (
-//                   <option key={slot} value={slot}>{slot}</option>
-//                 ))}
-//               </select>
+//         {/* Body */}
+//         <div className="px-6 py-8 space-y-6">
+//           {step === 1 ? (
+//             <div className="grid gap-6">
+//               {/* Name & Email */}
+//               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Name</label>
+//                   <input
+//                     type="text"
+//                     value={customerName}
+//                     onChange={(e) => setCustomerName(e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+//                     placeholder="Jane Doe"
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Email</label>
+//                   <input
+//                     type="email"
+//                     value={customerEmail}
+//                     onChange={(e) => setCustomerEmail(e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+//                     placeholder="jane@example.com"
+//                   />
+//                 </div>
+//               </div>
+
+//               {/* Party & Price */}
+//               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Party Size</label>
+//                   <input
+//                     type="number"
+//                     min={1}
+//                     value={partySize}
+//                     onChange={(e) => setPartySize(+e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2"
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Price ($)</label>
+//                   <input
+//                     type="number"
+//                     step={0.01}
+//                     value={price}
+//                     onChange={(e) => setPrice(+e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2"
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Notes</label>
+//                   <input
+//                     type="text"
+//                     value={notes}
+//                     onChange={(e) => setNotes(e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2"
+//                     placeholder="Allergies, preferences..."
+//                   />
+//                 </div>
+//               </div>
+
+//               {/* Date & Time */}
+//               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Date</label>
+//                   <input
+//                     type="date"
+//                     value={date}
+//                     onChange={(e) => setDate(e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2"
+//                   />
+//                 </div>
+//                 <div>
+//                   <label className="block text-sm font-medium text-gray-700">Time</label>
+//                   <select
+//                     value={time}
+//                     onChange={(e) => setTime(e.target.value)}
+//                     className="mt-1 w-full border rounded-lg px-3 py-2"
+//                   >
+//                     {generateSlots().map((s) => (
+//                       <option key={s} value={s}>
+//                         {s}
+//                       </option>
+//                     ))}
+//                   </select>
+//                 </div>
+//               </div>
+
+//               {/* Next Button */}
+//               <div className="text-right">
+//                 <button
+//                   onClick={next}
+//                   disabled={!customerName || !customerEmail}
+//                   className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+//                 >
+//                   Next
+//                 </button>
+//               </div>
 //             </div>
-
-//             <div className="flex justify-between pt-2">
-//               <div className="flex items-center space-x-2">
-//                 <label className="text-sm text-gray-500">Gap (min)</label>
-//                 <select value={gap} onChange={(e) => setGap(+e.target.value)} className="border rounded px-2 py-1 text-sm">
-//                   <option value={15}>15</option>
-//                   <option value={30}>30</option>
+//           ) : (
+//             <div className="space-y-6">
+//               {/* Table Selector */}
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">Table</label>
+//                 <select
+//                   value={selectedTable}
+//                   onChange={(e) => setSelectedTable(e.target.value)}
+//                   className="mt-1 w-full border rounded-lg px-3 py-2"
+//                 >
+//                   <option value="">Auto-assign best fit</option>
+//                   {tables.map((t) => (
+//                     <option key={t.id} value={t.id}>
+//                       Table {t.table_number} (Seats: {t.seats})
+//                     </option>
+//                   ))}
 //                 </select>
 //               </div>
-//               <button onClick={() => setStep(2)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-//                 Next
-//               </button>
+
+//               {/* Action Buttons */}
+//               <div className="flex justify-between items-center">
+//                 <button
+//                   onClick={back}
+//                   className="text-sm text-gray-600 hover:underline"
+//                 >
+//                   ← Back
+//                 </button>
+//                 <button
+//                   onClick={submit}
+//                   disabled={loading || success}
+//                   className={`inline-flex items-center px-6 py-2 rounded-lg text-white transition 
+//                     ${success
+//                       ? 'bg-green-600'
+//                       : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50'}`}
+//                 >
+//                   {loading
+//                     ? '…Submitting'
+//                     : success
+//                     ? <>
+//                         <CheckCircleIcon className="h-5 w-5 mr-1" /> Done
+//                       </>
+//                     : 'Confirm'}
+//                 </button>
+//               </div>
 //             </div>
-//           </div>
-//         )}
-
-//         {step === 2 && (
-//           <div className="space-y-4">
-//             <select value={selectedTable} onChange={(e) => setSelectedTable(e.target.value)} className="w-full border rounded px-3 py-2">
-//               <option value="">Select Table</option>
-//               {availableTables.map((t) => (
-//                 <option key={t.id} value={t.id}>Table {t.table_number} (Seats: {t.seats})</option>
-//               ))}
-//             </select>
-
-//             <div className="flex justify-between">
-//               <button onClick={() => setStep(1)} className="text-gray-600 hover:underline">Back</button>
-//               <button
-//                 disabled={submitting}
-//                 onClick={handleSubmit}
-//                 className={`px-4 py-2 rounded text-white ${submitted ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-//               >
-//                 {submitted ? 'Success' : 'Submit'}
-//               </button>
-//             </div>
-//           </div>
-//         )}
-
-//         <div className="text-right pt-2">
-//           <button onClick={onClose} className="text-sm text-gray-400 hover:underline">Cancel</button>
+//           )}
 //         </div>
 //       </div>
 //     </div>
 //   );
 // };
+
