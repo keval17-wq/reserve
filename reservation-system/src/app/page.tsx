@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export const dynamic = 'force-dynamic'; // 🔥 FORCE dynamic execution even on Vercel
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
   const router = useRouter();
@@ -12,5 +12,9 @@ export default function Home() {
     router.replace('/dashboard');
   }, [router]);
 
-  return null;
+  return (
+    <div>
+      Home page is being accessed!
+    </div>
+  );
 }
