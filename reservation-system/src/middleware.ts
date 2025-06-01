@@ -16,11 +16,11 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getUser(token);
 
   const url = req.nextUrl;
-  const isAuthPage = url.pathname === '/signin' || url.pathname === '/signup';
+  const isAuthPage = url.pathname === '/login' || url.pathname === '/signup';
 
   // ✅ If not signed in and trying to access protected routes
   if (!user && !isAuthPage) {
-    return NextResponse.redirect(new URL('/signin', req.url));
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
   // ✅ If signed in and trying to access signin or signup page
