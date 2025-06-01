@@ -1,21 +1,29 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse, NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { parse } from 'cookie';
+
+const supabaseUrl = 'https://xvowgjzaejkqibheqbay.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // shortened for brevity
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  const token = parse(req.headers.get('cookie') || '')['sb-access-token'];
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
 
-  if (!session && req.url.includes('/dashboard')) {
+  const isProtected = req.nextUrl.pathname.startsWith('/dashboard');
+
+  if (!user && isProtected) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  return res;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/calendar/:path*', '/tables/:path*'],
 };
