@@ -90,7 +90,7 @@ const Sidebar = ({
             <button
               onClick={async () => {
                 await signOut();
-                window.location.href = '/signin';
+                window.location.href = '/login';
               }}
               className="flex items-center space-x-2 text-slate-500 group-hover:text-slate-800 transition"
             >
