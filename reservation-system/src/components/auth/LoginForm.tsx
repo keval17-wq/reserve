@@ -12,19 +12,22 @@ export default function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       alert(error.message);
     } else {
-      router.push('/dashboard'); // Let middleware handle it
+      router.push('/dashboard'); // Let middleware validate session
     }
   };
 
   return (
     <form onSubmit={handleLogin}>
-      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-      <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" />
+      <input value={email} onChange={(e) => setEmail(e.target.value)} />
+      <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" />
       <button type="submit">Login</button>
     </form>
   );

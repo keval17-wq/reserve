@@ -10,13 +10,13 @@ export async function middleware(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoginPage = req.nextUrl.pathname === '/login';
+  const isAuthPage = req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup';
 
-  if (!user && !isLoginPage) {
+  if (!user && !isAuthPage) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  if (user && isLoginPage) {
+  if (user && isAuthPage) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
@@ -24,5 +24,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/login', '/signup'],
 };
