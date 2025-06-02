@@ -1,6 +1,7 @@
 // src/lib/supabase/calendar.ts
 
 import { supabase } from '@/lib/supabaseClient';
+import { sendEmail } from './email';
 
 export type Reservation = {
   id: string;
@@ -87,14 +88,16 @@ export const getRandomAvailableTable = async (
 export const getReservationsByDate = async (
   isoDate: string
 ): Promise<Reservation[]> => {
-  const start = `${isoDate}T00:00:00.000Z`;
-  const end = `${isoDate}T23:59:59.999Z`;
+  const start = new Date(`${isoDate}T00:00:00`);
+  const end = new Date(`${isoDate}T23:59:59.999`);
+
   const { data, error } = await supabase
-    .from('reservations_extended')
+    .from('reservations')
     .select('*')
-    .gte('reservation_time', start)
-    .lt('reservation_time', end)
+    .gte('reservation_time', start.toISOString())
+    .lt('reservation_time', end.toISOString())
     .order('reservation_time', { ascending: true });
+
   if (error) throw new Error(error.message);
   return data as Reservation[];
 };
@@ -141,4 +144,32 @@ export const getReservationsByMonth = async (
     .order('reservation_time', { ascending: true });
   if (error) throw new Error(error.message);
   return data as Reservation[];
+};
+
+
+// Add this new method at the bottom of calendar.ts
+export const approveReservation = async (
+  reservationId: string,
+  customerEmail: string,
+  customerName: string,
+  reservationDateTime: string,
+  partySize: number
+): Promise<boolean> => {
+  const { error } = await supabase
+    .from('reservations')
+    .update({ is_approved: true })
+    .eq('id', reservationId);
+
+  if (error) throw new Error(error.message);
+
+  await sendEmail({
+    reservationId,
+    toEmail: customerEmail,
+    customerName,
+    reservationDateTime,
+    partySize,
+    type: 'confirmation',
+  });
+
+  return true;
 };

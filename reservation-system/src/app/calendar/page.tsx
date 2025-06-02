@@ -57,6 +57,9 @@ export default function CalendarPage() {
   const weekData = getWeekData();
   const selectedDayData = weekData.find(day => day.date === selectedDay);
 
+  // Add state for view and setView
+  const [view, setView] = useState<'week' | 'day'>('week');
+
   return (
     <div className="p-6 space-y-8 bg-white min-h-screen text-black">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -76,6 +79,8 @@ export default function CalendarPage() {
             setCurrentWeekStart(start);
             setSelectedDay(today.toISOString().split('T')[0]);
           }}
+          view={view}
+          setView={setView}
         />
       </div>
 
