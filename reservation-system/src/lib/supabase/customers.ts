@@ -1,46 +1,51 @@
-// ✅ lib/supabase/customers.ts
+// src/lib/supabase/customers.ts
+
 import { supabase } from '@/lib/supabaseClient';
 
-// ✅ Get all customers (legacy function)
-export const getAllCustomers = async () => {
-  const { data, error } = await supabase
-    .from('customers')
-    .select('id, name, email');
-
-  if (error) throw new Error(error.message);
-  return data ?? [];
+export type CustomerRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  created_at: string;
 };
 
-// ✅ Get one customer by ID
-export const getCustomerById = async (id: string) => {
+/**
+ * Fetch all customers, most recent first.
+ */
+export async function getAllCustomers(): Promise<CustomerRow[]> {
   const { data, error } = await supabase
     .from('customers')
-    .select('*')
-    .eq('id', id)
-    .single();
+    .select('id, full_name, email, phone, created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as CustomerRow[];
+}
 
-  if (error) throw new Error(error.message);
-  return data;
-};
-
-// ✅ Create a new customer if email is unique
-export const createCustomerIfUnique = async (name: string, email: string): Promise<string> => {
-  const { data: existing, error: checkError } = await supabase
+/**
+ * Add a new customer. Returns the new row’s id.
+ */
+export async function addCustomer(
+  full_name: string,
+  email: string,
+  phone?: string
+): Promise<{ id: string }> {
+  const { data, error } = await supabase
     .from('customers')
+    .insert({ full_name, email, phone })
     .select('id')
-    .eq('email', email)
     .single();
+  if (error) throw error;
+  return data as { id: string };
+}
 
-  if (checkError && checkError.code !== 'PGRST116') throw checkError; // 'PGRST116' = no rows returned
-
-  if (existing?.id) return existing.id;
-
-  const { data, error } = await supabase
+/**
+ * Delete a customer by id. This will cascade‐delete their reservations (due to FOREIGN KEY).
+ */
+export async function deleteCustomerById(id: string): Promise<void> {
+  const { error } = await supabase
     .from('customers')
-    .insert({ name, email })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data.id;
-};
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}

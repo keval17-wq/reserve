@@ -1,207 +1,343 @@
-'use client'; // re_WQZRvNWN_JUs8MrDunXXvqRTQUEHpbw5z
+// src/app/dashboard/page.tsx
+import React from 'react';
+import { createClient } from '@supabase/supabase-js';
+import DashboardClient, { DashboardProps } from '@/app/dashboard/dashboard-client';
 
-import React, { useEffect, useState } from 'react';
-import { DashboardStatsCard } from '@/components/dashboard/dashboardStatsCard';
-//import { AnalyticsOverviewCard } from '@/components/dashboard/analyticsOverviewCard';
-import { TableStatusCard } from '@/components/dashboard/tableStatusCard';
-import { WeeklyPerformanceChart } from '@/components/dashboard/weeklyPerformanceChart';
-import { RecentCustomersCard } from '@/components/dashboard/recentCustomersCard';
-import { NewReservationModal } from '@/components/dashboard/newReservation';
-import {
-  getTotalReservations,
-  getTotalRevenue,
-  getOccupancyRate,
-  getRecentCustomers,
-} from '../../lib/supabase/dashboard';
+// Initialize Supabase for server-side
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-import {
-  CalendarDays,
-  DollarSign,
-  Users,
-  Percent,
-  //Clock,
-  Table,
-  CircleSlash,
-  AlertTriangle,
-  Wrench,
-  RefreshCcw,
-  Plus,
-} from 'lucide-react';
+async function getDashboardData(): Promise<DashboardProps> {
+  const TODAY = new Date().toISOString().slice(0, 10);
 
-const DashboardPage = () => {
-  const [totalReservations, setTotalReservations] = useState<number>(0);
-  const [totalRevenue, setTotalRevenue] = useState<number>(0);
-  const [occupancyRate, setOccupancyRate] = useState<number>(0);
-  type RecentCustomer = {
-    name: string;
-    created_at: string;
-  };
+  // 1) Total Reservations (this month, confirmed)
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+  const monthEnd = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() + 1,
+    0
+  )
+    .toISOString()
+    .slice(0, 10);
 
-  const [recentCustomers, setRecentCustomers] = useState<RecentCustomer[]>([]);
-  const [showNewReservation, setShowNewReservation] = useState(false);
+  const { count: totalReservations, error: errRes } = await supabase
+    .from('reservations')
+    .select('id', { count: 'exact', head: true })
+    .gte('reservation_date', monthStart)
+    .lte('reservation_date', monthEnd)
+    .eq('status', 'confirmed');
+  if (errRes) throw errRes;
 
-  const fetchData = async () => {
-    try {
-      const reservations = await getTotalReservations();
-      const revenue = await getTotalRevenue();
-      const occupancy = await getOccupancyRate();
-      const customers = await getRecentCustomers();
-
-      setTotalReservations(reservations);
-      setTotalRevenue(revenue);
-      setOccupancyRate(occupancy);
-      setRecentCustomers(customers);
-    } catch (error) {
-      console.error('Dashboard fetch error:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  return (
-    <div className="p-6 space-y-12 bg-gradient-to-b from-white to-gray-50 min-h-screen text-black">
-      {/* Page Header */}
-      <div className="mb-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-600">A snapshot of your restaurant&rsquo;s performance</p>
-        </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={fetchData}
-            className="flex items-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded shadow text-sm"
-          >
-            <RefreshCcw className="h-4 w-4 mr-1" /> Refresh Data
-          </button>
-          <button
-            onClick={() => setShowNewReservation(true)}
-            className="flex items-center bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded shadow text-sm"
-          >
-            <Plus className="h-4 w-4 mr-1" /> New Reservation
-          </button>
-        </div>
-      </div>
-
-      {/* Top Stats Section */}
-      <section>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          <DashboardStatsCard
-            title="Total Reservations"
-            value={totalReservations.toString()}
-            percentageChange={2.1}
-            icon={<CalendarDays className="h-5 w-5" />}
-          />
-          <DashboardStatsCard
-            title="New Customers"
-            value={recentCustomers.length.toString()}
-            percentageChange={1.7}
-            icon={<Users className="h-5 w-5" />}
-          />
-          <DashboardStatsCard
-            title="Revenue"
-            value={`$${totalRevenue.toFixed(2)}`}
-            percentageChange={8.6}
-            icon={<DollarSign className="h-5 w-5" />}
-          />
-          <DashboardStatsCard
-            title="Occupancy Rate"
-            value={`${occupancyRate}%`}
-            percentageChange={-1.2}
-            icon={<Percent className="h-5 w-5" />}
-          />
-        </div>
-      </section>
-
-      {/* Analytics Overview Section */}
-      {/* <section>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Analytics Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <AnalyticsOverviewCard
-            title="Weekly Revenue"
-            value={`$${totalRevenue.toFixed(2)}`}
-            percentageChange={5.2}
-            icon={<DollarSign className="h-5 w-5" />}
-          />
-          <AnalyticsOverviewCard
-            title="New Customers"
-            value={recentCustomers.length.toString()}
-            percentageChange={3.4}
-            icon={<Users className="h-5 w-5" />}
-          />
-          <AnalyticsOverviewCard
-            title="Reservations"
-            value={totalReservations.toString()}
-            percentageChange={1.9}
-            icon={<CalendarDays className="h-5 w-5" />}
-          />
-          <AnalyticsOverviewCard
-            title="Average Time"
-            value="1.8h"
-            percentageChange={6.5}
-            icon={<Clock className="h-5 w-5" />}
-          />
-        </div>
-      </section> */}
-
-      {/* Table Status Section */}
-      <section>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Table Status</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <TableStatusCard
-            label="Available"
-            count={10}
-            percentage="55%"
-            color="bg-green-100"
-            icon={<Table className="h-5 w-5 text-green-600" />}
-          />
-          <TableStatusCard
-            label="Reserved"
-            count={2}
-            percentage="15%"
-            color="bg-yellow-100"
-            icon={<CircleSlash className="h-5 w-5 text-yellow-500" />}
-          />
-          <TableStatusCard
-            label="Occupied"
-            count={5}
-            percentage="25%"
-            color="bg-blue-100"
-            icon={<AlertTriangle className="h-5 w-5 text-blue-600" />}
-          />
-          <TableStatusCard
-            label="Maintenance"
-            count={1}
-            percentage="5%"
-            color="bg-red-100"
-            icon={<Wrench className="h-5 w-5 text-red-600" />}
-          />
-        </div>
-      </section>
-
-      {/* Performance + Customers Section */}
-      <section>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <WeeklyPerformanceChart />
-          </div>
-          <RecentCustomersCard customers={recentCustomers} />
-        </div>
-      </section>
-
-      {showNewReservation && (
-        <NewReservationModal
-          onClose={() => setShowNewReservation(false)}
-          onComplete={async () => {
-            setShowNewReservation(false);
-            await fetchData();
-          }}
-        />
-      )}
-    </div>
+  // 2) Total Revenue (this month)
+  const { data: revRows, error: errRev } = await supabase
+    .from('reservations')
+    .select('revenue')
+    .gte('reservation_date', monthStart)
+    .lte('reservation_date', monthEnd)
+    .eq('status', 'confirmed');
+  if (errRev) throw errRev;
+  const totalRevenue = (revRows ?? []).reduce(
+    (sum, r: { revenue: number }) => sum + (r.revenue || 0),
+    0
   );
-};
 
-export default DashboardPage;
+  // 3) Occupancy Rate (today)
+  const { data: occRows, error: errOcc } = await supabase
+    .from('reservations')
+    .select('table_number')
+    .eq('reservation_date', TODAY)
+    .eq('status', 'confirmed');
+  if (errOcc) throw errOcc;
+  const uniqueTableNumbers = new Set(
+    (occRows ?? []).map((row: { table_number: number }) => row.table_number)
+  );
+  const occupiedCount = uniqueTableNumbers.size;
 
+  const { count: totalTables, error: errTbl } = await supabase
+    .from('tables')
+    .select('id', { count: 'exact', head: true });
+  if (errTbl) throw errTbl;
+  const occupancyRate = totalTables
+    ? Math.round((occupiedCount / totalTables) * 100)
+    : 0;
+
+  // 4) Table status counts
+  const { data: tableData, error: errTableStatus } = await supabase
+    .from('tables')
+    .select('status');
+  if (errTableStatus) throw errTableStatus;
+  const tableStatus: DashboardProps['tableStatus'] = {
+    available: 0,
+    reserved: 0,
+    occupied: 0,
+    maintenance: 0,
+  };
+  (tableData ?? []).forEach((row: { status: string }) => {
+    const key = row.status as keyof DashboardProps['tableStatus'];
+    if (tableStatus[key] !== undefined) tableStatus[key] += 1;
+  });
+
+  // 5) Weekly revenue (last 7 days)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const startDate = sevenDaysAgo.toISOString().slice(0, 10);
+
+  const { data: weekRows, error: errWeek } = await supabase
+    .from('reservations')
+    .select('reservation_date, revenue')
+    .gte('reservation_date', startDate)
+    .lte('reservation_date', TODAY)
+    .eq('status', 'confirmed');
+  if (errWeek) throw errWeek;
+
+  const revenueMap: Record<string, number> = {};
+  (weekRows ?? []).forEach((r: { reservation_date: string; revenue: number }) => {
+    revenueMap[r.reservation_date] = (revenueMap[r.reservation_date] || 0) + r.revenue;
+  });
+  const weeklyRevenue: Array<{ date: string; revenue: number }> = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    weeklyRevenue.push({
+      date: dateStr,
+      revenue: revenueMap[dateStr] || 0,
+    });
+  }
+  weeklyRevenue.reverse();
+
+  // 6) Recent customers (last 5 signed up)
+  const { data: recCust, error: errCust } = await supabase
+    .from('customers')
+    .select('full_name, email, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5);
+  if (errCust) throw errCust;
+  const recentCustomers = (recCust || []) as Customer[];
+
+  // 7) Next 5 reservations (today or later)
+  const { data: nextRows, error: errNext } = await supabase
+    .from('reservations')
+    .select('id, customer_name, reservation_date, reservation_time, table_number')
+    .eq('status', 'confirmed')
+    .gte('reservation_date', TODAY)
+    .order('reservation_date', { ascending: true })
+    .order('reservation_time', { ascending: true })
+    .limit(5);
+  if (errNext) throw errNext;
+  const nextReservations = (nextRows || []) as Array<{
+    id: string;
+    customer_name: string;
+    reservation_date: string;
+    reservation_time: string;
+    table_number: number;
+  }>;
+
+  return {
+    stats: {
+      totalReservations: totalReservations || 0,
+      totalRevenue,
+      occupancyRate,
+    },
+    tableStatus,
+    weeklyRevenue,
+    recentCustomers,
+    nextReservations,
+  };
+}
+
+export default async function DashboardPage() {
+  const data = await getDashboardData();
+  return <DashboardClient {...data} />;
+}
+
+
+// // src/app/dashboard/page.server.tsx
+// import React from 'react';
+// import { createClient } from '@supabase/supabase-js';
+// import DashboardClient from './dashboard-client'; // import the client component from page.tsx
+
+// type DashboardStats = {
+//   totalReservations: number;
+//   totalRevenue: number;
+//   occupancyRate: number;
+// };
+
+// type TableStatusCounts = {
+//   available: number;
+//   reserved: number;
+//   occupied: number;
+//   maintenance: number;
+// };
+
+// type Customer = {
+//   full_name: string;
+//   email: string;
+//   created_at: string;
+// };
+
+// type DashboardProps = {
+//   stats: DashboardStats;
+//   tableStatus: TableStatusCounts;
+//   weeklyRevenue: Array<{ date: string; revenue: number }>;
+//   recentCustomers: Customer[];
+//   nextReservations: Array<{
+//     id: string;
+//     customer_name: string;
+//     reservation_date: string;
+//     reservation_time: string;
+//   }>;
+// };
+
+// // Initialize Supabase (server-side)
+// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// async function getDashboardData(): Promise<DashboardProps> {
+//   const TODAY = new Date().toISOString().slice(0, 10);
+
+//   // 1) Total Reservations (this month, confirmed)
+//   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+//     .toISOString()
+//     .slice(0, 10);
+//   const monthEnd = new Date(
+//     new Date().getFullYear(),
+//     new Date().getMonth() + 1,
+//     0
+//   )
+//     .toISOString()
+//     .slice(0, 10);
+
+//   const { count: totalReservations, error: errRes } = await supabase
+//     .from('reservations')
+//     .select('id', { count: 'exact', head: true })
+//     .gte('reservation_date', monthStart)
+//     .lte('reservation_date', monthEnd)
+//     .eq('status', 'confirmed');
+//   if (errRes) throw errRes;
+
+//   // 2) Total Revenue (this month)
+//   const { data: revRows, error: errRev } = await supabase
+//     .from('reservations')
+//     .select('revenue')
+//     .gte('reservation_date', monthStart)
+//     .lte('reservation_date', monthEnd)
+//     .eq('status', 'confirmed');
+//   if (errRev) throw errRev;
+//   const totalRevenue = (revRows ?? []).reduce(
+//     (sum, r: { revenue: number }) => sum + (r.revenue || 0),
+//     0
+//   );
+
+//   // 3) Occupancy Rate (today)
+//   const { data: occRows, error: errOcc } = await supabase
+//     .from('reservations')
+//     .select('table_number')
+//     .eq('reservation_date', TODAY)
+//     .eq('status', 'confirmed');
+//   if (errOcc) throw errOcc;
+//   const uniqueTableNumbers = new Set(
+//     (occRows ?? []).map((row: { table_number: number }) => row.table_number)
+//   );
+//   const occupiedCount = uniqueTableNumbers.size;
+
+//   const { count: totalTables, error: errTbl } = await supabase
+//     .from('tables')
+//     .select('id', { count: 'exact', head: true });
+//   if (errTbl) throw errTbl;
+//   const occupancyRate = totalTables
+//     ? Math.round((occupiedCount / totalTables) * 100)
+//     : 0;
+
+//   // 4) Table status counts
+//   const { data: tableData, error: errTableStatus } = await supabase
+//     .from('tables')
+//     .select('status');
+//   if (errTableStatus) throw errTableStatus;
+//   const tableStatus: TableStatusCounts = {
+//     available: 0,
+//     reserved: 0,
+//     occupied: 0,
+//     maintenance: 0,
+//   };
+//   (tableData ?? []).forEach((row: { status: string }) => {
+//     const key = row.status as keyof TableStatusCounts;
+//     if (tableStatus[key] !== undefined) tableStatus[key] += 1;
+//   });
+
+//   // 5) Weekly revenue (last 7 days)
+//   const sevenDaysAgo = new Date();
+//   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+//   const startDate = sevenDaysAgo.toISOString().slice(0, 10);
+
+//   const { data: weekRows, error: errWeek } = await supabase
+//     .from('reservations')
+//     .select('reservation_date, revenue')
+//     .gte('reservation_date', startDate)
+//     .lte('reservation_date', TODAY)
+//     .eq('status', 'confirmed');
+//   if (errWeek) throw errWeek;
+
+//   const revenueMap: Record<string, number> = {};
+//   (weekRows ?? []).forEach((r: { reservation_date: string; revenue: number }) => {
+//     revenueMap[r.reservation_date] = (revenueMap[r.reservation_date] || 0) + r.revenue;
+//   });
+//   const weeklyRevenue: Array<{ date: string; revenue: number }> = [];
+//   for (let i = 0; i < 7; i++) {
+//     const d = new Date();
+//     d.setDate(d.getDate() - i);
+//     const dateStr = d.toISOString().slice(0, 10);
+//     weeklyRevenue.push({
+//       date: dateStr,
+//       revenue: revenueMap[dateStr] || 0,
+//     });
+//   }
+//   weeklyRevenue.reverse();
+
+//   // 6) Recent customers (last 5 signed up)
+//   const { data: recCust, error: errCust } = await supabase
+//     .from('customers')
+//     .select('full_name, email, created_at')
+//     .order('created_at', { ascending: false })
+//     .limit(5);
+//   if (errCust) throw errCust;
+//   const recentCustomers = (recCust || []) as Customer[];
+
+//   // 7) Next 5 reservations (today or later)
+//   const { data: nextRows, error: errNext } = await supabase
+//     .from('reservations')
+//     .select('id, customer_name, reservation_date, reservation_time')
+//     .eq('status', 'confirmed')
+//     .gte('reservation_date', TODAY)
+//     .order('reservation_date', { ascending: true })
+//     .order('reservation_time', { ascending: true })
+//     .limit(5);
+//   if (errNext) throw errNext;
+//   const nextReservations = (nextRows || []) as Array<{
+//     id: string;
+//     customer_name: string;
+//     reservation_date: string;
+//     reservation_time: string;
+//   }>;
+
+//   return {
+//     stats: {
+//       totalReservations: totalReservations || 0,
+//       totalRevenue,
+//       occupancyRate,
+//     },
+//     tableStatus,
+//     weeklyRevenue,
+//     recentCustomers,
+//     nextReservations,
+//   };
+// }
+
+// export default async function DashboardPageWrapper() {
+//   const data = await getDashboardData();
+//   return <DashboardClient {...data} />;
+// }

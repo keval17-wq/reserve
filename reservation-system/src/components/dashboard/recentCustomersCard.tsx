@@ -33,7 +33,6 @@ export const RecentCustomersCard = ({ customers }: Props) => {
   );
 };
 
-
 // // ─────────────────────────────────────────────
 // // 🔹 Component: RecentCustomersCard
 // // 🔹 Purpose: List recent customers from past 24h
@@ -42,11 +41,6 @@ export const RecentCustomersCard = ({ customers }: Props) => {
 // // ─────────────────────────────────────────────
 
 // import React from 'react';
-
-// type Customer = {
-//   name: string;
-//   time: string;
-// };
 
 // type Props = {
 //   customers: { name: string; created_at: string }[];

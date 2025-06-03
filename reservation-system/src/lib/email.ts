@@ -1,54 +1,62 @@
-// lib/email.ts
+// src/lib/email.ts
 import { Resend } from 'resend';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+if (typeof window !== 'undefined') {
+  throw new Error('lib/email.ts must run on the server only.');
+}
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? '');
 
-// ensure this file is only executed on the server
-if (typeof window !== 'undefined') {
-  throw new Error('lib/email.ts should never be imported on the client');
-}
+export const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
-type EmailType = 'confirmation' | 'cancel';
+type Kind = 'confirmation' | 'cancel';
 
-interface SendEmailProps {
+interface SendParams {
   reservationId: string;
   toEmail: string;
   customerName: string;
-  emailType: EmailType;
+  reservationDateTime: string;
+  persons: number;
+  type: Kind;
 }
 
-export async function sendEmail({
+export async function sendReservationEmail({
   reservationId,
   toEmail,
   customerName,
-  emailType,
-}: SendEmailProps) {
-  // fetch template (or hard-code if you like)
-  const { data: tmpl } = await supabase
-    .from('email_templates')
-    .select('from_email, subject, body_html')
-    .eq('type', emailType)
-    .single();
+  reservationDateTime,
+  persons,
+  type,
+}: SendParams) {
+  const subject =
+    type === 'confirmation'
+      ? 'Your reservation is confirmed'
+      : 'Your reservation has been cancelled';
 
-  if (!tmpl) throw new Error('Email template not found');
-
-  // simple token replace
-  const html = tmpl.body_html
-    .replace(/{{name}}/g, customerName)
-    .replace(/{{reservationId}}/g, reservationId);
+  const html = `
+    <p>Hi ${customerName},</p>
+    <p>Your reservation on <strong>${reservationDateTime}</strong>
+    for <strong>${persons}</strong> ${
+    persons === 1 ? 'person' : 'people'
+  } has been
+    ${type === 'confirmation' ? 'confirmed' : 'cancelled'}.</p>
+    <p>Reservation&nbsp;ID: <code>${reservationId}</code></p>
+  `;
 
   const result = await resend.emails.send({
-    from: tmpl.from_email,
-    to: [toEmail],
-    subject: tmpl.subject,
+    from: 'reservations@yourdomain.com',
+    to: toEmail,
+    subject,
     html,
   });
 
-  // optional logging
-  await supabase.from('emails_log').insert({
+  await supabaseAdmin.from('emails_log').insert({
     reservation_id: reservationId,
-    email_type: emailType,
+    email_type: type,
     response: result,
   });
 

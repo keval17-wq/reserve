@@ -1,175 +1,115 @@
 // src/lib/supabase/calendar.ts
-
 import { supabase } from '@/lib/supabaseClient';
-import { sendEmail } from './email';
 
-export type Reservation = {
+//
+// ─── TYPES ─────────────────────────────────────────────────────────────────────
+//
+
+export type ReservationRow = {
   id: string;
   customer_name: string;
   customer_email: string;
-  reservation_time: string;
+  customer_phone: string | null;
+  reservation_date: string; // 'YYYY-MM-DD'
+  reservation_time: string; // 'HH:MM:SS' or 'HH:MM'
+  persons: number;
+  revenue: number;
   table_number: number;
+  status: string; // 'pending' | 'confirmed' | 'cancelled'
 };
 
-type ReservationPayload = {
-  customer_id: string;
-  table_id: string;
-  reservation_time: string;
-  price: number;
-  special_instructions?: string;
+export type TableRow = {
+  id: string;
+  table_number: number;
+  capacity: number;
+  status: string;
 };
 
-// ─────────────────────────────────────────────────
-// 1️⃣ Create a reservation (identical to before)
-// ─────────────────────────────────────────────────
-export const createReservation = async (
-  payload: ReservationPayload
-): Promise<{ id: string }> => {
+//
+// ─── FETCH / UPDATE HELPERS ─────────────────────────────────────────────────────
+//
+
+/**
+ * Fetch all reservations for a given date (YYYY-MM-DD),
+ * ordered by reservation_time ascending.
+ */
+export async function getReservationsByDate(date: string): Promise<ReservationRow[]> {
   const { data, error } = await supabase
     .from('reservations')
-    .insert([payload])
-    .select('id')
-    .single();
-  if (error) throw new Error(error.message);
-  return { id: data.id };
-};
-
-// ─────────────────────────────────────────────────
-// 2️⃣ Get all tables that can seat this party & aren’t booked
-// ─────────────────────────────────────────────────
-export const getAvailableTables = async (
-  date: string,
-  time: string,
-  partySize: number
-) => {
-  const start = new Date(`${date}T${time}`);
-  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-
-  const { data: allTables, error: tblErr } = await supabase
-    .from('tables')
-    .select('id, table_number, seats, status')
-
-    .gte('seats', partySize);
-  if (tblErr) throw new Error(tblErr.message);
-
-  const { data: resvs, error: resErr } = await supabase
-    .from('reservations')
-    .select('table_id, reservation_time');
-  if (resErr) throw new Error(resErr.message);
-
-  const busy = (resvs ?? [])
-    .filter(r => {
-      const s = new Date(r.reservation_time);
-      const e = new Date(s.getTime() + 2 * 60 * 60 * 1000);
-      return s < end && e > start;
-    })
-    .map(r => r.table_id);
-
-  return (allTables ?? []).filter(t => !busy.includes(t.id));
-};
-
-// ─────────────────────────────────────────────────
-// 3️⃣ Auto-assign a random available table
-// ─────────────────────────────────────────────────
-export const getRandomAvailableTable = async (
-  date: string,
-  time: string,
-  partySize: number
-): Promise<string | null> => {
-  const candidates = await getAvailableTables(date, time, partySize);
-  if (candidates.length === 0) return null;
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  return pick.id;
-};
-
-// ─────────────────────────────────────────────────
-// 4️⃣ Day-view: all reservations on one date
-// ─────────────────────────────────────────────────
-export const getReservationsByDate = async (
-  isoDate: string
-): Promise<Reservation[]> => {
-  const start = new Date(`${isoDate}T00:00:00`);
-  const end = new Date(`${isoDate}T23:59:59.999`);
-
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('*')
-    .gte('reservation_time', start.toISOString())
-    .lt('reservation_time', end.toISOString())
+    .select(
+      'id, customer_name, customer_email, customer_phone, reservation_date, reservation_time, persons, revenue, table_number, status'
+    )
+    .eq('reservation_date', date)
     .order('reservation_time', { ascending: true });
+  if (error) throw error;
+  return (data || []) as ReservationRow[];
+}
 
-  if (error) throw new Error(error.message);
-  return data as Reservation[];
-};
-
-// ─────────────────────────────────────────────────
-// 5️⃣ Week-view: count of reservations Mon–Sun
-// ─────────────────────────────────────────────────
-export const getWeekCounts = async (
-  mondayIsoDate: string
-): Promise<Record<string, number>> => {
-  const start = new Date(mondayIsoDate);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
-
+/**
+ * Fetch all reservations between `startDate` and `endDate` (inclusive),
+ * ordered by date + time. Useful for week‐view.
+ */
+export async function getReservationsByDateRange(
+  startDate: string,
+  endDate: string
+): Promise<ReservationRow[]> {
   const { data, error } = await supabase
     .from('reservations')
-    .select('reservation_time')
-    .gte('reservation_time', start.toISOString())
-    .lt('reservation_time', end.toISOString());
-  if (error) throw new Error(error.message);
-
-  const counts: Record<string, number> = {
-    Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0,
-  };
-  (data ?? []).forEach(r => {
-    const day = new Date(r.reservation_time)
-      .toLocaleDateString('en-US', { weekday: 'short' });
-    counts[day] += 1;
-  });
-  return counts;
-};
-
-export const getReservationsByMonth = async (
-  year: number,
-  month: number
-): Promise<Reservation[]> => {
-  const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-  const end = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-  const { data, error } = await supabase
-    .from('reservations_extended')
-    .select('*')
-    .gte('reservation_time', start.toISOString())
-    .lt('reservation_time', end.toISOString())
+    .select(
+      'id, customer_name, customer_email, customer_phone, reservation_date, reservation_time, persons, revenue, table_number, status'
+    )
+    .gte('reservation_date', startDate)
+    .lte('reservation_date', endDate)
+    .order('reservation_date', { ascending: true })
     .order('reservation_time', { ascending: true });
-  if (error) throw new Error(error.message);
-  return data as Reservation[];
-};
+  if (error) throw error;
+  return (data || []) as ReservationRow[];
+}
 
-
-// Add this new method at the bottom of calendar.ts
-export const approveReservation = async (
-  reservationId: string,
-  customerEmail: string,
-  customerName: string,
-  reservationDateTime: string,
-  partySize: number
-): Promise<boolean> => {
+/**
+ * Cancel a reservation by setting status = 'cancelled'
+ */
+export async function cancelReservation(id: string): Promise<void> {
   const { error } = await supabase
     .from('reservations')
-    .update({ is_approved: true })
-    .eq('id', reservationId);
+    .update({ status: 'cancelled' })
+    .eq('id', id);
+  if (error) throw error;
+}
 
-  if (error) throw new Error(error.message);
+/**
+ * Approve a reservation by setting status = 'confirmed'
+ */
+export async function approveReservation(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status: 'confirmed' })
+    .eq('id', id);
+  if (error) throw error;
+}
 
-  await sendEmail({
-    reservationId,
-    toEmail: customerEmail,
-    customerName,
-    reservationDateTime,
-    partySize,
-    type: 'confirmation',
-  });
+/**
+ * Update reservation fields (e.g., table_number and/or revenue)
+ */
+export async function updateReservation(
+  id: string,
+  fields: { table_number?: number; revenue?: number }
+): Promise<void> {
+  const { error } = await supabase
+    .from('reservations')
+    .update(fields)
+    .eq('id', id);
+  if (error) throw error;
+}
 
-  return true;
-};
+/**
+ * Fetch all tables (to use for filtering or reassigning)
+ */
+export async function getAllTables(): Promise<TableRow[]> {
+  const { data, error } = await supabase
+    .from('tables')
+    .select('id, table_number, capacity, status')
+    .order('table_number', { ascending: true });
+  if (error) throw error;
+  return (data || []) as TableRow[];
+}

@@ -66,7 +66,7 @@ export async function sendEmail({
 }
 
 
-async function getEmailSettings(businessId: string) {
+async function getEmailSettings(_businessId: string) {
   const { data, error } = await supabase
     .from('email_templates')
     .select('from_email, subject, body_html')
