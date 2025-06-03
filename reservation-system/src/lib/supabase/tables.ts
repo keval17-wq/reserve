@@ -82,3 +82,19 @@ export const cancelReservationById = async (id: string): Promise<void> => {
 
   if (error) throw new Error(error.message);
 };
+
+// ADD at bottom of lib/supabase/tables.ts
+export async function updateReservation(
+  id: string,
+  values: { table_id?: string; price?: number }
+) {
+  const { data, error } = await supabase
+    .from('reservations')
+    .update(values)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}

@@ -1,4 +1,4 @@
-// ✅ lib/supabase/email.ts
+
 import { Resend } from 'resend';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -65,15 +65,16 @@ export async function sendEmail({
   }
 }
 
+
 async function getEmailSettings(businessId: string) {
   const { data, error } = await supabase
-    .from('email_settings')
-    .select('*')
-    .eq('business_id', businessId)
+    .from('email_templates')
+    .select('from_email, subject, body_html')
+    .eq('type', 'confirmation') // or 'cancel' depending on usage
+    .limit(1)
     .single();
 
   if (error || !data) {
-    // Default fallback
     return {
       sender_name: 'Reservo',
       sender_email: 'reservations@rank2revenue.com',
@@ -84,8 +85,37 @@ async function getEmailSettings(businessId: string) {
     };
   }
 
-  return data;
+  return {
+    sender_name: 'Reservo',
+    sender_email: data.from_email,
+    confirmation_subject: data.subject,
+    confirmation_body: data.body_html,
+    cancel_subject: data.subject,
+    cancel_body: data.body_html,
+  };
 }
+
+// async function getEmailSettings(businessId: string) {
+//   const { data, error } = await supabase
+//     .from('email_settings')
+//     .select('*')
+//     .eq('business_id', businessId)
+//     .single();
+
+//   if (error || !data) {
+//     // Default fallback
+//     return {
+//       sender_name: 'Reservo',
+//       sender_email: 'reservations@rank2revenue.com',
+//       confirmation_subject: 'Your reservation is confirmed!',
+//       confirmation_body: `Hi {{name}}, your reservation for {{partySize}} on {{date}} is confirmed.`,
+//       cancel_subject: 'Your reservation has been cancelled',
+//       cancel_body: `Hi {{name}}, your reservation on {{date}} has been cancelled.`,
+//     };
+//   }
+
+//   return data;
+// }
 
 function generateEmailTemplate({
   customerName,
