@@ -8,8 +8,13 @@ type Reservation = {
   id: string;
   customer_name: string;
   customer_email: string;
+  customer_phone: string;
   reservation_time: string;
+  reservation_date: string;
   table_number: number;
+  persons: number;
+  revenue: number;
+  status: string;
 };
 
 type CalendarViewProps = {

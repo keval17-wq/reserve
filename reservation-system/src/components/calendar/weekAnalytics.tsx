@@ -1,12 +1,12 @@
 'use client';
-import { Reservation } from '@/lib/supabase/calendar';
+import { ReservationRow } from '@/lib/supabase/calendar';
 import React from 'react';
 
 interface Props {
   weekData: {
     date: string;
     label: string;
-    reservations: Reservation[];
+    reservations: ReservationRow[];
   }[];
 }
 

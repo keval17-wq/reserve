@@ -1,9 +1,9 @@
 // ✅ components/calendar/ReservationCard.tsx
 import React from 'react';
-import type { Reservation } from '@/lib/supabase/calendar';
+import type { ReservationRow } from '@/lib/supabase/calendar';
 
 interface Props {
-  reservation: Reservation;
+  reservation: ReservationRow;
   onClick: () => void;
 }
 
