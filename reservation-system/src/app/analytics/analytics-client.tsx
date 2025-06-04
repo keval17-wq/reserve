@@ -15,7 +15,7 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { AnalyticsProps } from './analytics-client';
+
 
 const COLORS = ['#4CAF50', '#FFC107', '#2196F3', '#F44336']; // green, amber, blue, red
 
