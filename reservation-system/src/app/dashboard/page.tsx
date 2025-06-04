@@ -3,6 +3,12 @@ import React from 'react';
 import { createClient } from '@supabase/supabase-js';
 import DashboardClient, { DashboardProps } from '@/app/dashboard/dashboard-client';
 
+type Customer = {
+  full_name: string;
+  email: string;
+  created_at: string;
+};
+
 // Initialize Supabase for server-side
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
