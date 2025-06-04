@@ -1,8 +1,10 @@
+// src/lib/supabase/email.ts
 
 import { Resend } from 'resend';
 import { supabase } from '@/lib/supabaseClient';
 
-const resend = new Resend('re_WQZRvNWN_JUs8MrDunXXvqRTQUEHpbw5z');
+// Initialize Resend with your API key (move this to an env var in production)
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 type EmailType = 'confirmation' | 'cancel';
 
@@ -10,10 +12,10 @@ interface SendEmailProps {
   reservationId: string;
   toEmail: string;
   customerName: string;
-  reservationDateTime: string;
+  reservationDateTime: string; // e.g. '2025-06-20T18:00'
   partySize: number;
+  tableNumber: number;
   type: EmailType;
-  businessId?: string; // Optional, for multi-tenant future use
 }
 
 export async function sendEmail({
@@ -22,14 +24,17 @@ export async function sendEmail({
   customerName,
   reservationDateTime,
   partySize,
+  tableNumber,
   type,
-  businessId = 'default', // fallback for now
 }: SendEmailProps) {
-  const settings = await getEmailSettings(businessId);
+  // Fetch settings from "email_templates" table, or fallback to defaults
+  const settings = await getEmailSettings();
+
   const { subject, html } = generateEmailTemplate({
     customerName,
     reservationDateTime,
     partySize,
+    tableNumber,
     type,
     settings,
   });
@@ -42,6 +47,7 @@ export async function sendEmail({
       html,
     });
 
+    // Log success to `emails_log`
     await supabase.from('emails_log').insert({
       reservation_id: reservationId,
       to_email: toEmail,
@@ -53,6 +59,7 @@ export async function sendEmail({
     return { success: true };
   } catch (error) {
     const err = error as Error;
+    // Log failure to `emails_log`
     await supabase.from('emails_log').insert({
       reservation_id: reservationId,
       to_email: toEmail,
@@ -65,12 +72,15 @@ export async function sendEmail({
   }
 }
 
-
-async function getEmailSettings(_businessId: string) {
+/**
+ * Fetches email template settings from `email_templates` table.
+ * If none found, returns a sensible default.
+ */
+async function getEmailSettings() {
   const { data, error } = await supabase
     .from('email_templates')
     .select('from_email, subject, body_html')
-    .eq('type', 'confirmation') // or 'cancel' depending on usage
+    .eq('type', 'confirmation') // You could later switch on `type` if storing separate rows
     .limit(1)
     .single();
 
@@ -79,9 +89,9 @@ async function getEmailSettings(_businessId: string) {
       sender_name: 'Reservo',
       sender_email: 'reservations@rank2revenue.com',
       confirmation_subject: 'Your reservation is confirmed!',
-      confirmation_body: `Hi {{name}}, your reservation for {{partySize}} on {{date}} is confirmed.`,
+      confirmation_body: `Hi {{name}}, your reservation for {{partySize}} on {{dateTime}} at table {{tableNumber}} is confirmed.`,
       cancel_subject: 'Your reservation has been cancelled',
-      cancel_body: `Hi {{name}}, your reservation on {{date}} has been cancelled.`,
+      cancel_body: `Hi {{name}}, your reservation on {{dateTime}} at table {{tableNumber}} has been cancelled.`,
     };
   }
 
@@ -95,38 +105,18 @@ async function getEmailSettings(_businessId: string) {
   };
 }
 
-// async function getEmailSettings(businessId: string) {
-//   const { data, error } = await supabase
-//     .from('email_settings')
-//     .select('*')
-//     .eq('business_id', businessId)
-//     .single();
-
-//   if (error || !data) {
-//     // Default fallback
-//     return {
-//       sender_name: 'Reservo',
-//       sender_email: 'reservations@rank2revenue.com',
-//       confirmation_subject: 'Your reservation is confirmed!',
-//       confirmation_body: `Hi {{name}}, your reservation for {{partySize}} on {{date}} is confirmed.`,
-//       cancel_subject: 'Your reservation has been cancelled',
-//       cancel_body: `Hi {{name}}, your reservation on {{date}} has been cancelled.`,
-//     };
-//   }
-
-//   return data;
-// }
-
 function generateEmailTemplate({
   customerName,
   reservationDateTime,
   partySize,
+  tableNumber,
   type,
   settings,
 }: {
   customerName: string;
   reservationDateTime: string;
   partySize: number;
+  tableNumber: number;
   type: EmailType;
   settings: {
     sender_name: string;
@@ -137,10 +127,11 @@ function generateEmailTemplate({
     cancel_body: string;
   };
 }) {
-  const replacements = {
+  const replacements: Record<string, string> = {
     '{{name}}': customerName,
-    '{{date}}': reservationDateTime,
+    '{{dateTime}}': reservationDateTime,
     '{{partySize}}': partySize.toString(),
+    '{{tableNumber}}': tableNumber.toString(),
   };
 
   const replacePlaceholders = (text: string) =>
